@@ -17,8 +17,8 @@ public class GridManager : MonoBehaviour
     {
         CreateGrid();
         SetRandomExit();
-        GeneratePathToExit();
-        GenerateMaze();
+        //GeneratePathToExit();
+        //GenerateMaze();
     }
 
     void CreateGrid()
@@ -31,7 +31,7 @@ public class GridManager : MonoBehaviour
                 Vector3 position = new Vector3(x * cellSize, y * cellSize, 0);
                 GameObject cellObj = new GameObject($"Cell_{x}_{y}");
                 cellObj.transform.position = position;
-                cellObj.transform.parent = transform;
+                cellObj.transform.parent = transform; //set grid manager as parent for organization.
                 Cell cell = cellObj.AddComponent<Cell>();
                 cell.Initialize(x, y);
                 grid[x, y] = cell;
@@ -46,12 +46,15 @@ public class GridManager : MonoBehaviour
         {
             exitX = Random.Range(1, width);  // Avoid (0,0)
             exitY = Random.Range(1, height); // Avoid (0,0)
-        } while (grid[exitX, exitY].isWall); // Ensure the exit is not a wall
+        } while (/*grid[exitX, exitY].isWall &&*/ exitX < 6 && exitY < 6); // Ensure the exit is not a wall
 
         exitCell = grid[exitX, exitY];
         exitCell.SetAsExit();
     }
 
+    /////////////////////////////////
+    //   Old maze gen system - doesn't work
+    /////////////////////////////////
     void GeneratePathToExit()
     {
         // Use Depth-First Search (DFS) or another pathfinding algorithm to create a path from (0,0) to the exit
@@ -111,6 +114,94 @@ public class GridManager : MonoBehaviour
             }
         }
     }
+    ////////////////////////////////////////
+    ////////////////////////////////////////
+
+
+
+    ///////////////////////
+    /// A* pathfinding
+    //////////////////////
+    public List<Cell> FindPath(Cell start, Cell target)
+    {
+        List<Cell> openSet = new List<Cell> { start };
+        HashSet<Cell> closedSet = new HashSet<Cell>();
+
+        start.gCost = 0;
+        start.CalculateHeuristic(target);
+
+        while (openSet.Count > 0)
+        {
+            Cell current = openSet[0];
+            for (int i = 1; i < openSet.Count; i++)
+            {
+                if (openSet[i].fCost < current.fCost || 
+                    (openSet[i].fCost == current.fCost && openSet[i].hCost < current.hCost))
+                {
+                    current = openSet[i];
+                }
+            }
+
+            openSet.Remove(current);
+            closedSet.Add(current);
+
+            if (current == target)
+            {
+                return RetracePath(start, target);
+            }
+
+            foreach (Cell neighbor in GetNeighbors(current))
+            {
+                if (neighbor.isWall || closedSet.Contains(neighbor))
+                {
+                    continue;
+                }
+
+                int newMovementCostToNeighbor = current.gCost + 1;
+                if (newMovementCostToNeighbor < neighbor.gCost || !openSet.Contains(neighbor))
+                {
+                    neighbor.gCost = newMovementCostToNeighbor;
+                    neighbor.CalculateHeuristic(target);
+                    neighbor.parent = current;
+
+                    if (!openSet.Contains(neighbor))
+                    {
+                        openSet.Add(neighbor);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    List<Cell> GetNeighbors(Cell cell)
+    {
+        List<Cell> neighbors = new List<Cell>();
+
+        if (cell.x > 0) neighbors.Add(grid[cell.x - 1, cell.y]);
+        if (cell.x < width - 1) neighbors.Add(grid[cell.x + 1, cell.y]);
+        if (cell.y > 0) neighbors.Add(grid[cell.x, cell.y - 1]);
+        if (cell.y < height - 1) neighbors.Add(grid[cell.x, cell.y + 1]);
+
+        return neighbors;
+    }
+
+    List<Cell> RetracePath(Cell start, Cell end)
+    {
+        List<Cell> path = new List<Cell>();
+        Cell current = end;
+
+        while (current != start)
+        {
+            path.Add(current);
+            current = current.parent;
+        }
+
+        path.Reverse();
+        return path;
+    }
+}
 
     void OnDrawGizmos()
     {
