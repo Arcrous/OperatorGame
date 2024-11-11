@@ -9,7 +9,7 @@ public class Cell : MonoBehaviour
     public bool isOccupied;
     public bool isExit;
     public bool isWall;
-    public bool isPath;
+    public bool isPath = false;
     public string cellEvent;
 
     //Init a cell

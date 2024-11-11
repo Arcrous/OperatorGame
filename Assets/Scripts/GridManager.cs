@@ -8,13 +8,16 @@ public class GridManager : MonoBehaviour
     public int height = 10;
     public float cellSize = 1f;
     [Range(0.1f, 0.5f)]
-    public float wallDensity = 0.3f;  // Percentage of cells to be walls
+    public float wallDensity = 0.3f;
 
     private Cell[,] grid;
+    private Cell exitCell;
 
     void Start()
     {
         CreateGrid();
+        SetRandomExit();
+        GeneratePathToExit();
         GenerateMaze();
     }
 
@@ -36,28 +39,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    void GenerateMaze()
-    {
-        // Randomly assign cells as walls based on wallDensity
-        for (int x = 0; x < width; x++)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                // Skip the starting cell (0,0)
-                if (x == 0 && y == 0) continue;
-
-                // Randomly decide if this cell should be a wall
-                if (Random.value < wallDensity)
-                {
-                    grid[x, y].isWall = true;
-                }
-            }
-        }
-
-        // Choose an exit cell that is not (0,0) and is not a wall
-        SetRandomExit();
-    }
-
     void SetRandomExit()
     {
         int exitX, exitY;
@@ -67,10 +48,70 @@ public class GridManager : MonoBehaviour
             exitY = Random.Range(1, height); // Avoid (0,0)
         } while (grid[exitX, exitY].isWall); // Ensure the exit is not a wall
 
-        grid[exitX, exitY].isExit = true;
+        exitCell = grid[exitX, exitY];
+        exitCell.SetAsExit();
     }
 
-    // Draw grid in the Scene view
+    void GeneratePathToExit()
+    {
+        // Use Depth-First Search (DFS) or another pathfinding algorithm to create a path from (0,0) to the exit
+        Stack<Cell> stack = new Stack<Cell>();
+        Cell startCell = grid[0, 0];
+        startCell.isPath = true;
+        stack.Push(startCell);
+
+        while (stack.Count > 0)
+        {
+            Cell current = stack.Peek();
+
+            // If we've reached the exit, break out
+            if (current == exitCell) break;
+
+            // Get unvisited neighbors
+            List<Cell> neighbors = GetUnvisitedNeighbors(current);
+
+            if (neighbors.Count > 0)
+            {
+                Cell nextCell = neighbors[Random.Range(0, neighbors.Count)];
+                nextCell.isPath = true;
+                stack.Push(nextCell);
+            }
+            else
+            {
+                // Backtrack if no unvisited neighbors
+                stack.Pop();
+            }
+        }
+    }
+
+    List<Cell> GetUnvisitedNeighbors(Cell cell)
+    {
+        List<Cell> neighbors = new List<Cell>();
+
+        // Check all four directions and add unvisited neighbors
+        if (cell.x > 0 && !grid[cell.x - 1, cell.y].isPath) neighbors.Add(grid[cell.x - 1, cell.y]);
+        if (cell.x < width - 1 && !grid[cell.x + 1, cell.y].isPath) neighbors.Add(grid[cell.x + 1, cell.y]);
+        if (cell.y > 0 && !grid[cell.x, cell.y - 1].isPath) neighbors.Add(grid[cell.x, cell.y - 1]);
+        if (cell.y < height - 1 && !grid[cell.x, cell.y + 1].isPath) neighbors.Add(grid[cell.x, cell.y + 1]);
+
+        return neighbors;
+    }
+
+    void GenerateMaze()
+    {
+        // After path is created, assign walls to the rest of the cells based on wallDensity
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (!grid[x, y].isPath && !grid[x, y].isExit && Random.value < wallDensity)
+                {
+                    grid[x, y].SetAsWall();
+                }
+            }
+        }
+    }
+
     void OnDrawGizmos()
     {
         if (grid == null)
@@ -84,26 +125,19 @@ public class GridManager : MonoBehaviour
                 Gizmos.color = Color.white;
                 Gizmos.DrawWireCube(position, Vector3.one * cellSize);
 
-                // Wall visualization
                 if (grid[x, y] != null && grid[x, y].isWall)
                 {
                     Gizmos.color = Color.black;
                     Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
                 }
-                // Exit visualization
                 else if (grid[x, y] != null && grid[x, y].isExit)
                 {
                     Gizmos.color = Color.green;
                     Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
                 }
-                else if (grid[x, y] != null && grid[x, y].isOccupied)
+                else if (grid[x, y] != null && grid[x, y].isPath)
                 {
-                    Gizmos.color = Color.red;
-                    Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
-                }
-                else if (grid[x, y] != null && grid[x, y].cellEvent != "None")
-                {
-                    Gizmos.color = Color.blue;
+                    Gizmos.color = Color.yellow; // Mark path cells for easier visualization
                     Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
                 }
             }
