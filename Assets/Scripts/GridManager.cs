@@ -7,18 +7,16 @@ public class GridManager : MonoBehaviour
     public int width = 10;
     public int height = 10;
     public float cellSize = 1f;
-    [Range(0.1f, 0.5f)]
+    [Range(0.1f, 1f)]
     public float wallDensity = 0.3f;
 
-    private Cell[,] grid;
-    private Cell exitCell;
+    public Cell[,] grid;
+    public Cell exitCell;
 
     void Start()
     {
         CreateGrid();
-        SetRandomExit();
-        //GeneratePathToExit();
-        //GenerateMaze();
+        GenerateMaze();
     }
 
     void CreateGrid()
@@ -41,20 +39,64 @@ public class GridManager : MonoBehaviour
 
     void SetRandomExit()
     {
-        int exitX, exitY;
+        /*int exitX, exitY;
         do
         {
             exitX = Random.Range(1, width);  // Avoid (0,0)
             exitY = Random.Range(1, height); // Avoid (0,0)
-        } while (/*grid[exitX, exitY].isWall &&*/ exitX < 6 && exitY < 6); // Ensure the exit is not a wall
+        } while (*//*grid[exitX, exitY].isWall &&*//* exitX < 6 && exitY < 6); // Ensure the exit is not a wall*/
+
+        int exitX = Random.Range(3, width);
+        int exitY = Random.Range(3, height);
 
         exitCell = grid[exitX, exitY];
         exitCell.SetAsExit();
     }
 
+    void GenerateMaze()
+    {
+        //Set an exit
+        SetRandomExit();
+
+        //Use A* to generate a guaranteed path from start to exit
+        Cell startCell = grid[0, 0];
+        List<Cell> path = FindPath(startCell, exitCell);
+
+        if (path == null)
+        {
+            Debug.LogError("Failed to generate a valid path.");
+            return;
+        }
+
+        // Mark all cells in the path
+        foreach (Cell cell in path)
+        {
+            cell.isWall = false; // Ensure path cells are not walls
+            cell.SetEvent("Path");
+        }
+
+        // Step 3: Add walls randomly while avoiding the path
+        AddRandomWalls(path);
+    }
+
+    void AddRandomWalls(List<Cell> path)
+    {
+        foreach (Cell cell in grid)
+        {
+            // Skip cells in the path or the start/exit cells
+            if (path.Contains(cell) || cell == grid[0, 0] || cell == exitCell)
+                continue;
+
+            // Randomly decide if the cell should be a wall
+            if (Random.value < wallDensity) // Adjust probability for wall density
+            {
+                cell.SetAsWall();
+            }
+        }
+    }
+
     /////////////////////////////////
-    //   Old maze gen system - doesn't work
-    /////////////////////////////////
+    //Old maze gen system - doesn't work
     void GeneratePathToExit()
     {
         // Use Depth-First Search (DFS) or another pathfinding algorithm to create a path from (0,0) to the exit
@@ -100,7 +142,7 @@ public class GridManager : MonoBehaviour
         return neighbors;
     }
 
-    void GenerateMaze()
+    void GenerateMazeOld()
     {
         // After path is created, assign walls to the rest of the cells based on wallDensity
         for (int x = 0; x < width; x++)
@@ -114,8 +156,7 @@ public class GridManager : MonoBehaviour
             }
         }
     }
-    ////////////////////////////////////////
-    ////////////////////////////////////////
+    /////////////////////////////////
 
 
 
@@ -201,7 +242,6 @@ public class GridManager : MonoBehaviour
         path.Reverse();
         return path;
     }
-}
 
     void OnDrawGizmos()
     {
