@@ -154,6 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gridManager: {fileID: 1749455302}
+  moveSpeed: 2
 --- !u!212 &365204638
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -343,8 +344,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8593c17342d1ef84e9127530124beba6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 20
-  height: 20
+  width: 15
+  height: 15
   cellSize: 1
   wallDensity: 0.6
   exitCell: {fileID: 0}

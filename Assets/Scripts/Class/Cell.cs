@@ -52,6 +52,13 @@ public class Cell : MonoBehaviour
         cellEvent = "Wall";
     }
 
+    //Set as path
+    public void SetAsPath()
+    {
+        isPath = true;
+        cellEvent = "Path";
+    }
+
     //Set as exit
     public void SetAsExit()
     {
