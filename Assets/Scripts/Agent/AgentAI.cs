@@ -5,13 +5,12 @@ using UnityEngine;
 public class AgentAI : MonoBehaviour
 {
     public GridManager gridManager;
+    public float moveSpeed = 2f; // Speed of movement between cells
+
     private Cell startCell;
     private Cell exitCell;
     private List<Cell> path;
-    private int pathIndex = 0;
-
     private bool isMoving;
-    public float moveSpeed = 2f; // Speed of movement between cells
 
     private void Awake()
     {
@@ -20,18 +19,17 @@ public class AgentAI : MonoBehaviour
 
     private void Start()
     {
-        Invoke("StartTracing", 2f);
+        Invoke("InitializePathfinding", 0.5f);
     }
 
-    void StartTracing()
+    void InitializePathfinding()
     {
-        Debug.Log("Start trace");
-        //this.transform.position = gridManager.grid[0, 0].transform.position;
+        Debug.Log("Agent AI: Initializing pathfinding");
 
         startCell = gridManager.grid[0, 0];
         exitCell = gridManager.exitCell;
 
-        path = gridManager.FindPath(startCell, exitCell);
+        path = FindPath(startCell, exitCell);
 
         if (path != null && path.Count > 0)
         {
@@ -39,29 +37,18 @@ public class AgentAI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("No path found to the exit!");
+            Debug.LogError("Agent AI: No path found to the exit!");
         }
     }
 
     IEnumerator FollowPath()
     {
-        /* while (pathIndex < path.Count)
-         {
-             *//*Cell nextCell = path[pathIndex];
-             transform.position = new Vector3(nextCell.x * gridManager.cellSize, nextCell.y * gridManager.cellSize, 0);*//*
-             Vector3 goToPos = GetNextPosition();
-             this.transform.position = Vector3.Slerp(this.transform.position, goToPos, 1f);
-             pathIndex++;
-             yield return new WaitForSeconds(2f); // Delay between steps
-         }*/
-
         foreach (Cell cell in path)
         {
-            // Wait until the agent finishes moving before proceeding
             yield return MoveToCell(cell);
         }
 
-        Debug.Log("Agent reached the exit!");
+        Debug.Log("Agent AI: Reached the exit!");
     }
 
     IEnumerator MoveToCell(Cell targetCell)
@@ -77,21 +64,100 @@ public class AgentAI : MonoBehaviour
         while (elapsedTime < 1f / moveSpeed)
         {
             elapsedTime += Time.deltaTime * moveSpeed;
-            transform.position = Vector3.Slerp(startPos, endPos, elapsedTime);
+            transform.position = Vector3.Lerp(startPos, endPos, elapsedTime);
             yield return null;
         }
 
-        // Snap to the final position to avoid slight inaccuracies
         transform.position = endPos;
-
         isMoving = false;
     }
 
-    private Vector3 GetNextPosition()
+    public List<Cell> FindPath(Cell start, Cell target)
     {
-        Vector3 nextPos;
-        Cell nextCell = path[pathIndex];
-        nextPos = new Vector3(nextCell.x * gridManager.cellSize, nextCell.y * gridManager.cellSize, 0);
-        return nextPos;
+        List<Cell> openSet = new List<Cell> { start };
+        HashSet<Cell> closedSet = new HashSet<Cell>();
+
+        Dictionary<Cell, int> gCost = new Dictionary<Cell, int>();
+        Dictionary<Cell, int> hCost = new Dictionary<Cell, int>();
+        Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
+
+        gCost[start] = 0;
+        hCost[start] = CalculateHeuristic(start, target);
+
+        while (openSet.Count > 0)
+        {
+            // Find cell with lowest F cost
+            Cell current = openSet[0];
+            foreach (Cell cell in openSet)
+            {
+                int currentFCost = gCost[current] + hCost[current];
+                int cellFCost = gCost[cell] + hCost[cell];
+                if (cellFCost < currentFCost || (cellFCost == currentFCost && hCost[cell] < hCost[current]))
+                {
+                    current = cell;
+                }
+            }
+
+            if (current == target)
+            {
+                return RetracePath(cameFrom, start, target);
+            }
+
+            openSet.Remove(current);
+            closedSet.Add(current);
+
+            foreach (Cell neighbor in GetNeighbors(current))
+            {
+                if (neighbor.isWall || closedSet.Contains(neighbor))
+                    continue;
+
+                int tentativeGCost = gCost[current] + 1;
+
+                if (!gCost.ContainsKey(neighbor) || tentativeGCost < gCost[neighbor])
+                {
+                    gCost[neighbor] = tentativeGCost;
+                    hCost[neighbor] = CalculateHeuristic(neighbor, target);
+                    cameFrom[neighbor] = current;
+
+                    if (!openSet.Contains(neighbor))
+                        openSet.Add(neighbor);
+                }
+            }
+        }
+
+        return null; // No path found
+    }
+
+    List<Cell> GetNeighbors(Cell cell)
+    {
+        List<Cell> neighbors = new List<Cell>();
+
+        // Check adjacent cells in the grid
+        if (cell.x > 0) neighbors.Add(gridManager.grid[cell.x - 1, cell.y]);
+        if (cell.x < gridManager.width - 1) neighbors.Add(gridManager.grid[cell.x + 1, cell.y]);
+        if (cell.y > 0) neighbors.Add(gridManager.grid[cell.x, cell.y - 1]);
+        if (cell.y < gridManager.height - 1) neighbors.Add(gridManager.grid[cell.x, cell.y + 1]);
+
+        return neighbors;
+    }
+
+    List<Cell> RetracePath(Dictionary<Cell, Cell> cameFrom, Cell start, Cell end)
+    {
+        List<Cell> path = new List<Cell>();
+        Cell current = end;
+
+        while (current != start)
+        {
+            path.Add(current);
+            current = cameFrom[current];
+        }
+
+        path.Reverse();
+        return path;
+    }
+
+    int CalculateHeuristic(Cell a, Cell b)
+    {
+        return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
     }
 }

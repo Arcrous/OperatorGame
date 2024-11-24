@@ -13,23 +13,27 @@ public class GridManager : MonoBehaviour
     public Cell[,] grid;
     public Cell exitCell;
 
+    public GameObject agentObj;
+    public GameObject enemyPrefab; // Assign the enemy prefab in the Inspector
+
     void Start()
     {
-        GenerateValidMaze();
+        StartCoroutine(GenerateValidMazeCoroutine());
     }
 
-    void GenerateValidMaze()
+    IEnumerator GenerateValidMazeCoroutine()
     {
         bool mazeIsValid = false;
 
         while (!mazeIsValid)
         {
-            CreateGrid();
-            GenerateMaze();
+            yield return StartCoroutine(CreateGridCoroutine());
+            yield return StartCoroutine(GenerateMazeCoroutine());
 
-            // Attempt to solve the maze
+            // Validate the maze
+            Debug.Log("Validating maze...");
             Cell startCell = grid[0, 0];
-            List<Cell> path = FindPath(startCell, exitCell);
+            List<Cell> path = FindPath(exitCell, startCell); // Find path from exit to start
 
             if (path != null)
             {
@@ -41,19 +45,25 @@ public class GridManager : MonoBehaviour
                     cell.isWall = false;
                     cell.SetEvent("Path");
                 }
+                Debug.Log("Maze successfully validated and solved!");
+
+                // Spawn an enemy
+                SpawnEnemy();
+
+                agentObj.SetActive(true);
             }
             else
             {
-                // If no valid path exists, clear the grid and try again
                 Debug.Log("Maze was unsolvable. Regenerating...");
             }
-        }
 
-        Debug.Log("Maze successfully generated and solved!");
+            yield return null; // Wait a frame before retrying
+        }
     }
 
-    void CreateGrid()
+    IEnumerator CreateGridCoroutine()
     {
+        Debug.Log("Creating grid...");
         grid = new Cell[width, height];
 
         for (int x = 0; x < width; x++)
@@ -68,25 +78,23 @@ public class GridManager : MonoBehaviour
                 Cell cell = cellObj.AddComponent<Cell>();
                 cell.Initialize(x, y);
                 grid[x, y] = cell;
+
+                // Spread workload over frames
+                if ((x * width + y) % 100 == 0) // Adjust batch size if necessary
+                {
+                    yield return null; // Wait a frame
+                }
             }
         }
+
+        Debug.Log("Grid created!");
     }
 
-    void SetRandomExit()
+    IEnumerator GenerateMazeCoroutine()
     {
-        int exitX = Random.Range(6, width);
-        int exitY = Random.Range(6, height);
-
-        exitCell = grid[exitX, exitY];
-        exitCell.SetAsExit();
-    }
-
-    void GenerateMaze()
-    {
-        // Set the random exit cell
+        Debug.Log("Generating maze...");
         SetRandomExit();
 
-        // Add walls randomly
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
@@ -99,13 +107,42 @@ public class GridManager : MonoBehaviour
                 {
                     grid[x, y].SetAsWall();
                 }
+
+                // Spread workload over frames
+                if ((x * width + y) % 100 == 0) // Adjust batch size if necessary
+                {
+                    yield return null; // Wait a frame
+                }
             }
         }
+
+        Debug.Log("Maze generated!");
+    }
+
+    void SetRandomExit()
+    {
+        int exitX = Random.Range(6, width);
+        int exitY = Random.Range(6, height);
+
+        exitCell = grid[exitX, exitY];
+        exitCell.SetAsExit();
+        //Debug.Log($"Exit set at: ({exitX}, {exitY})");
+    }
+
+    void SpawnEnemy()
+    {
+        int amountToSpawn = Random.Range(0, 5);
+        for (int x = 0; x < amountToSpawn; x++)
+        {
+            Debug.Log("Spawning enemy");
+        }
+        GameObject enemy = Instantiate(enemyPrefab);
+        enemy.transform.SetParent(transform);
     }
 
     ///////////////////////
     /// A* Pathfinding
-    //////////////////////
+    ///////////////////////
     public List<Cell> FindPath(Cell start, Cell target)
     {
         List<Cell> openSet = new List<Cell> { start };
@@ -119,7 +156,7 @@ public class GridManager : MonoBehaviour
             Cell current = openSet[0];
             for (int i = 1; i < openSet.Count; i++)
             {
-                if (openSet[i].fCost < current.fCost || 
+                if (openSet[i].fCost < current.fCost ||
                     (openSet[i].fCost == current.fCost && openSet[i].hCost < current.hCost))
                 {
                     current = openSet[i];
@@ -131,7 +168,7 @@ public class GridManager : MonoBehaviour
 
             if (current == target)
             {
-                return RetracePath(start, target);
+                return RetracePath(target, start); // Reverse: from target (start) to start (exit)
             }
 
             foreach (Cell neighbor in GetNeighbors(current))
@@ -172,15 +209,15 @@ public class GridManager : MonoBehaviour
     List<Cell> RetracePath(Cell start, Cell end)
     {
         List<Cell> path = new List<Cell>();
-        Cell current = end;
+        Cell current = start; // Start retracing from the start (exit cell)
 
-        while (current != start)
+        while (current != end)
         {
             path.Add(current);
             current = current.parent;
         }
 
-        path.Reverse();
+        path.Add(end); // Add the end cell (0,0)
         return path;
     }
 
@@ -197,20 +234,23 @@ public class GridManager : MonoBehaviour
                 Gizmos.color = Color.white;
                 Gizmos.DrawWireCube(position, Vector3.one * cellSize);
 
-                if (grid[x, y] != null && grid[x, y].isWall)
+                if (grid[x, y] != null)
                 {
-                    Gizmos.color = Color.black;
-                    Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
-                }
-                else if (grid[x, y] != null && grid[x, y].isExit)
-                {
-                    Gizmos.color = Color.green;
-                    Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
-                }
-                else if (grid[x, y] != null && grid[x, y].isPath)
-                {
-                    Gizmos.color = Color.yellow;
-                    Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
+                    if (grid[x, y].isWall)
+                    {
+                        Gizmos.color = Color.black;
+                        Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
+                    }
+                    else if (grid[x, y].isExit)
+                    {
+                        Gizmos.color = Color.green;
+                        Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
+                    }
+                    else if (grid[x, y].isPath)
+                    {
+                        Gizmos.color = Color.yellow;
+                        Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
+                    }
                 }
             }
         }

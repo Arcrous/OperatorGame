@@ -140,7 +140,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &365204637
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -154,7 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gridManager: {fileID: 1749455302}
-  moveSpeed: 2
+  moveSpeed: 1
 --- !u!212 &365204638
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -542,8 +542,10 @@ MonoBehaviour:
   width: 15
   height: 15
   cellSize: 1
-  wallDensity: 0.65
+  wallDensity: 0.5
   exitCell: {fileID: 0}
+  agentObj: {fileID: 365204636}
+  enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}
 --- !u!4 &1749455303
 Transform:
   m_ObjectHideFlags: 0
