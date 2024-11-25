@@ -137,7 +137,7 @@ public class GridManager : MonoBehaviour
             Debug.Log("Spawning enemy");
         }
         GameObject enemy = Instantiate(enemyPrefab);
-        enemy.transform.SetParent(transform);
+        //enemy.transform.SetParent(transform);
     }
 
     ///////////////////////
@@ -219,6 +219,44 @@ public class GridManager : MonoBehaviour
 
         path.Add(end); // Add the end cell (0,0)
         return path;
+    }
+
+    public Cell GetCellFromWorldPosition(Vector3 worldPosition)
+    {
+        // Calculate the grid cell indices based on the world position
+        int x = Mathf.FloorToInt(worldPosition.x - transform.position.x);
+        int y = Mathf.FloorToInt(worldPosition.z - transform.position.z); // Assuming Z is the depth in the world
+
+        // Ensure indices are within the grid bounds
+        if (x >= 0 && x < width && y >= 0 && y < height)
+        {
+            return grid[x, y];
+        }
+
+        // Return null if the position is outside the grid bounds
+        Debug.LogWarning($"GetCellFromWorldPosition: Position {worldPosition} is outside the grid bounds.");
+        return null;
+    }
+
+    public Cell GetRandomWalkableCell()
+    {
+        List<Cell> walkableCells = new List<Cell>();
+
+        foreach (var cell in grid)
+        {
+            if (!cell.isWall) // Check if the cell is not a wall
+            {
+                walkableCells.Add(cell);
+            }
+        }
+
+        if (walkableCells.Count > 0)
+        {
+            return walkableCells[Random.Range(0, walkableCells.Count)];
+        }
+
+        Debug.LogError("No walkable cells available!");
+        return null;
     }
 
     void OnDrawGizmos()

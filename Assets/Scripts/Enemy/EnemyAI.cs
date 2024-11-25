@@ -4,96 +4,103 @@ using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
 {
-    public GridManager gridManager; // Reference to the grid manager
-    public int patrolRange = 3; // Max range for patrol from its spawn point
+    public GridManager gridManager;
     public float moveSpeed = 1f; // Speed of movement between cells
-    private Cell currentCell; // The cell where the enemy is currently located
-    private Cell startCell; // Starting cell
-    private Cell targetCell; // Target cell to move to
-    private List<Cell> patrolCells; // List of cells within patrol range
+    public List<Cell> patrolCells; // Cells within the patrol range
+    private Queue<Cell> currentPath;
+    private Cell currentCell;
+    private Cell targetCell;
 
-    private bool isMoving;
-
-    // Start is called before the first frame update
-    void Start()
+    private void Awake()
     {
         gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
+    }
 
-        // Find a random spawn point that is not a wall, start, or exit
-        SpawnEnemy();
+    private void Start()
+    {
+        if (gridManager == null)
+        {
+            Debug.LogError("GridManager is not assigned to EnemyAI!");
+            return;
+        }
 
-        // Generate patrol cells within range
-        GeneratePatrolRange();
+        // Get a random, valid starting cell
+        Cell randomCell = gridManager.GetRandomWalkableCell();
+        if (randomCell == null)
+        {
+            Debug.LogError("Failed to find a valid random cell for EnemyAI.");
+            return;
+        }
 
-        // Start patrolling
+        // Set the current cell and move the enemy to the starting position
+        currentCell = randomCell;
+        transform.position = randomCell.transform.position;
+
+        // Start the patrol coroutine
         StartCoroutine(Patrol());
     }
 
-    void SpawnEnemy()
+
+    void InitializeEnemy()
     {
-        while (true)
+        if (gridManager == null)
         {
-            int x = Random.Range(0, gridManager.width);
-            int y = Random.Range(0, gridManager.height);
-
-            Cell potentialCell = gridManager.grid[x, y];
-
-            if (!potentialCell.isWall && !potentialCell.isExit && (x != 0 || y != 0)) // Avoid walls, start, and exit
-            {
-                startCell = potentialCell;
-                currentCell = startCell;
-                transform.position = startCell.transform.position;
-                break;
-            }
+            Debug.LogError("GridManager is not assigned to EnemyAI!");
+            return;
         }
-    }
 
-    void GeneratePatrolRange()
-    {
-        patrolCells = new List<Cell>();
-
-        int startX = Mathf.Max(0, startCell.x - patrolRange);
-        int endX = Mathf.Min(gridManager.width - 1, startCell.x + patrolRange);
-        int startY = Mathf.Max(0, startCell.y - patrolRange);
-        int endY = Mathf.Min(gridManager.height - 1, startCell.y + patrolRange);
-
-        for (int x = startX; x <= endX; x++)
+        // Get a random, valid starting cell
+        Cell randomCell = gridManager.GetRandomWalkableCell();
+        if (randomCell == null)
         {
-            for (int y = startY; y <= endY; y++)
-            {
-                Cell cell = gridManager.grid[x, y];
-                if (!cell.isWall && cell != startCell) // Exclude walls and the start cell
-                {
-                    patrolCells.Add(cell);
-                }
-            }
+            Debug.LogError("Failed to find a valid random cell for EnemyAI.");
+            return;
         }
+
+        // Set the current cell and move the enemy to the starting position
+        currentCell = randomCell;
+        transform.position = randomCell.transform.position;
+
+        StartCoroutine(Patrol());
     }
 
     IEnumerator Patrol()
     {
         while (true)
         {
-            if (isMoving)
+            if (patrolCells.Count == 0)
             {
-                yield return null;
+                Debug.LogError("Enemy AI: Patrol cells list is empty!");
+                yield break;
+            }
+
+            // Pick a random patrol target
+            targetCell = patrolCells[Random.Range(0, patrolCells.Count)];
+            Debug.Log($"Enemy AI: Patrolling to ({targetCell.x}, {targetCell.y})");
+
+            List<Cell> path = FindPath(currentCell, targetCell);
+            if (path == null)
+            {
+                Debug.LogWarning("Enemy AI: No path found to the target cell. Retrying...");
+                yield return new WaitForSeconds(1f);
                 continue;
             }
 
-            // Choose a random patrol cell within range
-            targetCell = patrolCells[Random.Range(0, patrolCells.Count)];
+            currentPath = new Queue<Cell>(path);
 
-            // Move to the target cell
-            yield return MoveToCell(targetCell);
+            // Move along the path
+            while (currentPath.Count > 0)
+            {
+                yield return MoveToCell(currentPath.Dequeue());
+            }
 
-            // Wait at the target cell before moving again
-            yield return new WaitForSeconds(Random.Range(1f, 3f)); // Pause between movements
+            // Wait before choosing a new patrol target
+            yield return new WaitForSeconds(Random.Range(1f, 3f));
         }
     }
 
     IEnumerator MoveToCell(Cell targetCell)
     {
-        isMoving = true;
         Vector3 startPos = transform.position;
         Vector3 endPos = targetCell.transform.position;
 
@@ -107,6 +114,126 @@ public class EnemyAI : MonoBehaviour
 
         transform.position = endPos;
         currentCell = targetCell;
-        isMoving = false;
+    }
+
+    public List<Cell> FindPath(Cell start, Cell target)
+    {
+        if (start == null || target == null)
+        {
+            Debug.LogError("FindPath: Start or target cell is null!");
+            return null;
+        }
+
+        List<Cell> openSet = new List<Cell> { start };
+        HashSet<Cell> closedSet = new HashSet<Cell>();
+
+        Dictionary<Cell, int> gCost = new Dictionary<Cell, int>();
+        Dictionary<Cell, int> hCost = new Dictionary<Cell, int>();
+        Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
+
+        gCost[start] = 0;
+        hCost[start] = CalculateHeuristic(start, target);
+
+        while (openSet.Count > 0)
+        {
+            Cell current = openSet[0];
+            foreach (Cell cell in openSet)
+            {
+                int currentFCost = gCost[current] + hCost[current];
+                int cellFCost = gCost[cell] + hCost[cell];
+                if (cellFCost < currentFCost || (cellFCost == currentFCost && hCost[cell] < hCost[current]))
+                {
+                    current = cell;
+                }
+            }
+
+            if (current == target)
+            {
+                return RetracePath(cameFrom, start, target);
+            }
+
+            openSet.Remove(current);
+            closedSet.Add(current);
+
+            foreach (Cell neighbor in GetNeighbors(current))
+            {
+                if (neighbor.isWall || closedSet.Contains(neighbor))
+                    continue;
+
+                int tentativeGCost = gCost[current] + 1;
+
+                if (!gCost.ContainsKey(neighbor) || tentativeGCost < gCost[neighbor])
+                {
+                    gCost[neighbor] = tentativeGCost;
+                    hCost[neighbor] = CalculateHeuristic(neighbor, target);
+                    cameFrom[neighbor] = current;
+
+                    if (!openSet.Contains(neighbor))
+                        openSet.Add(neighbor);
+                }
+            }
+        }
+
+        return null; // No path found
+    }
+
+    List<Cell> RetracePath(Dictionary<Cell, Cell> cameFrom, Cell start, Cell end)
+    {
+        List<Cell> path = new List<Cell>();
+        Cell current = end;
+
+        while (current != start)
+        {
+            path.Add(current);
+            current = cameFrom[current];
+        }
+
+        path.Reverse();
+        return path;
+    }
+
+    List<Cell> GetNeighbors(Cell cell)
+    {
+        List<Cell> neighbors = new List<Cell>();
+
+        if (cell.x > 0) neighbors.Add(gridManager.grid[cell.x - 1, cell.y]);
+        if (cell.x < gridManager.width - 1) neighbors.Add(gridManager.grid[cell.x + 1, cell.y]);
+        if (cell.y > 0) neighbors.Add(gridManager.grid[cell.x, cell.y - 1]);
+        if (cell.y < gridManager.height - 1) neighbors.Add(gridManager.grid[cell.x, cell.y + 1]);
+
+        return neighbors;
+    }
+
+    int CalculateHeuristic(Cell a, Cell b)
+    {
+        return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+    }
+
+    List<Cell> GetPatrolCells(Cell start, int range)
+    {
+        List<Cell> cells = new List<Cell>();
+
+        Cell cell = gridManager.grid[x + 1, y];
+        if (!cell.isWall)
+        {
+            cells.Add(cell);
+        }
+        Cell cell = gridManager.grid[x - 1, y];
+        if (!cell.isWall)
+        {
+            cells.Add(cell);
+        }
+        Cell cell = gridManager.grid[x , y+1];
+        if (!cell.isWall)
+        {
+            cells.Add(cell);
+        }
+        Cell cell = gridManager.grid[x, y-1];
+        if (!cell.isWall)
+        {
+            cells.Add(cell);
+        }
+
+        return cells;
     }
 }
