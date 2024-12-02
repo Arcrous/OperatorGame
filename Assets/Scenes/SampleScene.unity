@@ -136,11 +136,11 @@ GameObject:
   - component: {fileID: 365204637}
   m_Layer: 0
   m_Name: Agent
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &365204637
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -196,7 +196,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 1
-  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
+  m_Sprite: {fileID: -1525641869, guid: 11de1c0d559079743922406f958398f1, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -542,7 +542,7 @@ MonoBehaviour:
   width: 15
   height: 15
   cellSize: 1
-  wallDensity: 0.5
+  wallDensity: 0.4
   exitCell: {fileID: 0}
   agentObj: {fileID: 365204636}
   enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}

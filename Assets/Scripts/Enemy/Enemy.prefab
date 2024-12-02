@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: -1002987794689888375}
   m_Layer: 0
   m_Name: Enemy
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -98,5 +98,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gridManager: {fileID: 0}
-  patrolRange: 3
   moveSpeed: 1
+  patrolRange: 5
+  startCell: {fileID: 0}

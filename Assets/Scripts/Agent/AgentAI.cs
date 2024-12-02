@@ -19,7 +19,7 @@ public class AgentAI : MonoBehaviour
 
     private void Start()
     {
-        Invoke("InitializePathfinding", 0.5f);
+        Invoke("InitializePathfinding", 1.5f);
     }
 
     void InitializePathfinding()
@@ -159,5 +159,18 @@ public class AgentAI : MonoBehaviour
     int CalculateHeuristic(Cell a, Cell b)
     {
         return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (path != null)
+        {
+            Gizmos.color = Color.green;
+
+            foreach (Cell cell in path)
+            {
+                Gizmos.DrawSphere(cell.transform.position, 0.2f);
+            }
+        }
     }
 }

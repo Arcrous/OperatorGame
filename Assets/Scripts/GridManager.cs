@@ -50,7 +50,8 @@ public class GridManager : MonoBehaviour
                 // Spawn an enemy
                 SpawnEnemy();
 
-                agentObj.SetActive(true);
+                //Activate the agent gObj
+                //agentObj.SetActive(true);
             }
             else
             {
@@ -131,12 +132,12 @@ public class GridManager : MonoBehaviour
 
     void SpawnEnemy()
     {
-        int amountToSpawn = Random.Range(0, 5);
+        int amountToSpawn = Random.Range(2, 5);
         for (int x = 0; x < amountToSpawn; x++)
         {
             Debug.Log("Spawning enemy");
         }
-        GameObject enemy = Instantiate(enemyPrefab);
+            GameObject enemy = Instantiate(enemyPrefab);
         //enemy.transform.SetParent(transform);
     }
 
