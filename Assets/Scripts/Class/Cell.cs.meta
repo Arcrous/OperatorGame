@@ -3,7 +3,12 @@ guid: ac784a90709e418458c8e307f488c1cf
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - parent: {instanceID: 0}
+  - groundSprite: {fileID: 1813804369, guid: 7e38232432147494986a52fb6a311322, type: 3}
+  - wallSprite: {fileID: -424938151, guid: 7e38232432147494986a52fb6a311322, type: 3}
+  - exitSprite: {fileID: -672939713, guid: 7e38232432147494986a52fb6a311322, type: 3}
+  - spriteRend: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

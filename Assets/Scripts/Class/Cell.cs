@@ -6,10 +6,8 @@ public class Cell : MonoBehaviour
 {
     public int x;
     public int y;
-    public bool isOccupied;
     public bool isExit;
     public bool isWall;
-    public bool isPath = false;
     public string cellEvent;
 
     //A* pathfinding heuristic cost
@@ -19,18 +17,27 @@ public class Cell : MonoBehaviour
 
     public Cell parent; //to track the path
 
+    //store sprites
+    [SerializeField] Sprite groundSprite;
+    [SerializeField] Sprite wallSprite;
+    [SerializeField] Sprite exitSprite;
+
+    [SerializeField] SpriteRenderer spriteRend;
+
     //Init a cell
     public void Initialize(int x, int y)
     {
         this.x = x;
         this.y = y;
-        isOccupied = false;
         isWall = false;
         isExit = false;
         cellEvent = "None";
         gCost = 0;
         hCost = 0;
         parent = null;
+
+        spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
+
     }
 
     //Set cell event
@@ -39,24 +46,11 @@ public class Cell : MonoBehaviour
         cellEvent = eventDescription;
     }
 
-    //Set cell as occupied by entity
-    public void SetOccupied(bool occupied)
-    {
-        isOccupied = occupied;
-    }
-
     //Set as wall
     public void SetAsWall()
     {
         isWall = true;
         cellEvent = "Wall";
-    }
-
-    //Set as path
-    public void SetAsPath()
-    {
-        isPath = true;
-        cellEvent = "Path";
     }
 
     //Set as exit

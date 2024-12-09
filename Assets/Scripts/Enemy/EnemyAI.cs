@@ -29,8 +29,11 @@ public class EnemyAI : MonoBehaviour
         currentCell = GetRandomWalkableCellAvoidingFirstRows(3);
         if (currentCell != null)
         {
+            //update location to accomadate for relocating after spawn, so trace works properly.
             transform.position = currentCell.transform.position;
             LeaveTrace(currentCell, "EnemyTrace");
+            
+            //gen the path and follow it.
             GenerateNewPatrolPath();
             StartCoroutine(FollowPath());
         }
@@ -42,6 +45,7 @@ public class EnemyAI : MonoBehaviour
 
     void GenerateNewPatrolPath()
     {
+        //get a random cell with range to set as target
         Cell targetCell = GetRandomCellWithinRange(currentCell, patrolRange);
         if (targetCell != null)
         {
@@ -79,6 +83,7 @@ public class EnemyAI : MonoBehaviour
 
     IEnumerator MoveToCell(Cell targetCell)
     {
+        //prevent double input.
         if (isMoving)
             yield break;
 
@@ -98,13 +103,14 @@ public class EnemyAI : MonoBehaviour
             yield return null;
         }
 
-        transform.position = endPos;
+        transform.position = endPos; //update position.
         currentCell = targetCell; // Update current cell after moving
         isMoving = false;
     }
 
     void LeaveTrace(Cell cell, string traceType)
     {
+        //set cell event as trace for Agent to pick up.
         if (cell != null)
         {
             Debug.Log("Leaving trace - Enemy");
@@ -113,6 +119,7 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
+    //Clear the trace after a delay
     IEnumerator ClearTraceAfterDelay(Cell cell)
     {
         yield return new WaitForSeconds(traceDuration);
@@ -122,6 +129,9 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
+    /////////////
+    /// A* pathfinding logic (made by chatgpt - to be honest, i only get the theory behind it but not the intricacy of the code itself) <summary>
+    /////////////
     List<Cell> FindPath(Cell start, Cell target)
     {
         List<Cell> openSet = new List<Cell> { start };
@@ -261,6 +271,7 @@ public class EnemyAI : MonoBehaviour
         return candidates[Random.Range(0, candidates.Count)];
     }
 
+    //Visualisation gizmos
     private void OnDrawGizmos()
     {
         if (gridManager != null)

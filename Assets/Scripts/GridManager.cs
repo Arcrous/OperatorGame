@@ -4,31 +4,36 @@ using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
-    public int width = 10;
-    public int height = 10;
-    public float cellSize = 1f;
+    public int width = 10; //grid width
+    public int height = 10; //grid height
+    public float cellSize = 1f; //how big the cell is
     [Range(0.1f, 1f)]
-    public float wallDensity = 0.3f;
+    public float wallDensity = 0.3f; //determine how many walls will be placed
 
     public Cell[,] grid;
     public Cell exitCell;
+    Cell exitAdj1;
+    Cell exitAdj2;
+    Cell exitAdj3;
+    Cell exitAdj4;
 
     public GameObject agentObj;
-    public GameObject enemyPrefab; // Assign the enemy prefab in the Inspector
+    public GameObject enemyPrefab;
 
     void Start()
     {
         StartCoroutine(GenerateValidMazeCoroutine());
     }
 
+    //Generate a maze until it's solvable by tracing from exit to start using A*
     IEnumerator GenerateValidMazeCoroutine()
     {
         bool mazeIsValid = false;
 
         while (!mazeIsValid)
         {
-            yield return StartCoroutine(CreateGridCoroutine());
-            yield return StartCoroutine(GenerateMazeCoroutine());
+            yield return StartCoroutine(CreateGridCoroutine()); //Make the grid first
+            yield return StartCoroutine(GenerateMazeCoroutine()); //Generate a maze after
 
             // Validate the maze
             Debug.Log("Validating maze...");
@@ -39,19 +44,13 @@ public class GridManager : MonoBehaviour
             {
                 mazeIsValid = true;
 
-                // Mark the valid path visually
-                foreach (Cell cell in path)
-                {
-                    cell.isWall = false;
-                    cell.SetEvent("Path");
-                }
                 Debug.Log("Maze successfully validated and solved!");
 
                 // Spawn an enemy
                 SpawnEnemy();
 
                 //Activate the agent gObj
-                //agentObj.SetActive(true);
+                agentObj.SetActive(true);
             }
             else
             {
@@ -62,7 +61,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    IEnumerator CreateGridCoroutine()
+    IEnumerator CreateGridCoroutine() //Create a grid 
     {
         Debug.Log("Creating grid...");
         grid = new Cell[width, height];
@@ -72,7 +71,7 @@ public class GridManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 Vector3 position = new Vector3(x * cellSize, y * cellSize, 0);
-                GameObject cellObj = new GameObject($"Cell_{x}_{y}");
+                GameObject cellObj = new GameObject($"Cell_{x}_{y}"); //replace with cellPrefab later for sprite
                 cellObj.transform.position = position;
                 cellObj.transform.parent = transform;
 
@@ -91,7 +90,7 @@ public class GridManager : MonoBehaviour
         Debug.Log("Grid created!");
     }
 
-    IEnumerator GenerateMazeCoroutine()
+    IEnumerator GenerateMazeCoroutine() //Places walls randomly and place an exit
     {
         Debug.Log("Generating maze...");
         SetRandomExit();
@@ -100,8 +99,8 @@ public class GridManager : MonoBehaviour
         {
             for (int y = 0; y < height; y++)
             {
-                // Skip start and exit cells
-                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell)
+                // Skip start and exit cells + cells adjacent to it
+                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4)
                     continue;
 
                 if (Random.value < wallDensity)
@@ -120,29 +119,36 @@ public class GridManager : MonoBehaviour
         Debug.Log("Maze generated!");
     }
 
-    void SetRandomExit()
+    void SetRandomExit() //Place an exit
     {
-        int exitX = Random.Range(6, width);
-        int exitY = Random.Range(6, height);
+        //Ensure the exit is at least 6 rows away from the exit
+        int exitX = Random.Range(6, width-1);
+        int exitY = Random.Range(6, height-1);
 
         exitCell = grid[exitX, exitY];
+
+        //Get the 4 cells adjacent to the exit
+        exitAdj1 = grid[exitX, exitY + 1];
+        exitAdj2 = grid[exitX, exitY - 1];
+        exitAdj3 = grid[exitX + 1, exitY];
+        exitAdj4 = grid[exitX - 1, exitY];
+
         exitCell.SetAsExit();
-        //Debug.Log($"Exit set at: ({exitX}, {exitY})");
     }
 
-    void SpawnEnemy()
+    void SpawnEnemy() //Spawn enemies
     {
         int amountToSpawn = Random.Range(2, 5);
         for (int x = 0; x < amountToSpawn; x++)
         {
             Debug.Log("Spawning enemy");
-        }
             GameObject enemy = Instantiate(enemyPrefab);
+        }
         //enemy.transform.SetParent(transform);
     }
 
     ///////////////////////
-    /// A* Pathfinding
+    /// A* Pathfinding (made by chatgpt - I can understand the logic behind A* but not the intricacy of the code)
     ///////////////////////
     public List<Cell> FindPath(Cell start, Cell target)
     {
@@ -260,6 +266,7 @@ public class GridManager : MonoBehaviour
         return null;
     }
 
+    //Visualisation
     void OnDrawGizmos()
     {
         if (grid == null)
@@ -283,11 +290,6 @@ public class GridManager : MonoBehaviour
                     else if (grid[x, y].isExit)
                     {
                         Gizmos.color = Color.green;
-                        Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
-                    }
-                    else if (grid[x, y].isPath)
-                    {
-                        Gizmos.color = Color.yellow;
                         Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
                     }
                 }
