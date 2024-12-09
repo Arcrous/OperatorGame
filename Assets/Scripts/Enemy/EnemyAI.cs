@@ -7,9 +7,10 @@ public class EnemyAI : MonoBehaviour
     public GridManager gridManager;
     public float moveSpeed = 1f;
     public int patrolRange = 5; // Limits how far the enemy can move from its starting position
+    public float traceDuration = 5f;
 
-    [SerializeField] private Cell startCell;
-    private List<Cell> path;
+    private Cell currentCell; // Tracks the enemy's current cell
+    private List<Cell> path; // Current path for patrol
     private bool isMoving;
 
     private void Awake()
@@ -19,27 +20,33 @@ public class EnemyAI : MonoBehaviour
 
     private void Start()
     {
-        Invoke("InitializePatrol", 0.5f);
+        InitializePatrol();
     }
 
     void InitializePatrol()
     {
-        Debug.Log("Enemy AI: Initializing patrol");
-
-        // Get a random walkable cell avoiding the first 3 rows
-        startCell = GetRandomWalkableCellAvoidingFirstRows(3);
-        transform.position = startCell.transform.position;
-
-        // Generate an initial patrol path using A*
-        GenerateNewPatrolPath();
-        StartCoroutine(FollowPath());
+        // Set the enemy's starting cell to a random walkable cell avoiding the first 3 rows
+        currentCell = GetRandomWalkableCellAvoidingFirstRows(3);
+        if (currentCell != null)
+        {
+            transform.position = currentCell.transform.position;
+            LeaveTrace(currentCell, "EnemyTrace");
+            GenerateNewPatrolPath();
+            StartCoroutine(FollowPath());
+        }
+        else
+        {
+            Debug.LogError("EnemyAI: Failed to find a valid starting cell.");
+        }
     }
 
     void GenerateNewPatrolPath()
     {
-        Debug.Log("Generating patrol path");
-        Cell targetCell = GetRandomCellWithinRange(startCell, patrolRange);
-        path = FindPath(startCell, targetCell);
+        Cell targetCell = GetRandomCellWithinRange(currentCell, patrolRange);
+        if (targetCell != null)
+        {
+            path = FindPath(currentCell, targetCell);
+        }
     }
 
     IEnumerator FollowPath()
@@ -52,19 +59,19 @@ public class EnemyAI : MonoBehaviour
                 {
                     yield return MoveToCell(cell);
                 }
-                path.Reverse(); // Reverse path for looping back to the start
 
+                path.Reverse(); // Reverse the path to return to the start
                 foreach (Cell cell in path)
                 {
                     yield return MoveToCell(cell);
                 }
 
-                // Generate a new patrol path
+                // Generate a new patrol path after completing the loop
                 GenerateNewPatrolPath();
             }
             else
             {
-                Debug.LogWarning("Enemy AI: No valid path found. Regenerating path.");
+                Debug.LogWarning("EnemyAI: No valid path found. Regenerating...");
                 GenerateNewPatrolPath();
             }
         }
@@ -76,8 +83,12 @@ public class EnemyAI : MonoBehaviour
             yield break;
 
         isMoving = true;
+
         Vector3 startPos = transform.position;
         Vector3 endPos = targetCell.transform.position;
+
+        // Leave a trace in the current cell before moving
+        LeaveTrace(currentCell, "EnemyTrace");
 
         float elapsedTime = 0f;
         while (elapsedTime < 1f / moveSpeed)
@@ -88,7 +99,27 @@ public class EnemyAI : MonoBehaviour
         }
 
         transform.position = endPos;
+        currentCell = targetCell; // Update current cell after moving
         isMoving = false;
+    }
+
+    void LeaveTrace(Cell cell, string traceType)
+    {
+        if (cell != null)
+        {
+            Debug.Log("Leaving trace - Enemy");
+            cell.cellEvent = traceType;
+            StartCoroutine(ClearTraceAfterDelay(cell));
+        }
+    }
+
+    IEnumerator ClearTraceAfterDelay(Cell cell)
+    {
+        yield return new WaitForSeconds(traceDuration);
+        if (cell != null && cell.cellEvent == "EnemyTrace")
+        {
+            cell.cellEvent = "None";
+        }
     }
 
     List<Cell> FindPath(Cell start, Cell target)
@@ -232,13 +263,25 @@ public class EnemyAI : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        if (gridManager != null)
+        {
+            foreach (Cell cell in gridManager.grid)
+            {
+                if (cell.cellEvent == "EnemyTrace")
+                {
+                    Gizmos.color = Color.yellow;
+                    Gizmos.DrawSphere(cell.transform.position, 0.3f);
+                }
+            }
+        }
+
         if (path != null)
         {
             Gizmos.color = Color.red;
 
             foreach (Cell cell in path)
             {
-                Gizmos.DrawSphere(cell.transform.position, 0.2f);
+                Gizmos.DrawSphere(cell.transform.position, 0.15f);
             }
         }
     }

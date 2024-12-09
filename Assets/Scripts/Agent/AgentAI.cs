@@ -1,20 +1,32 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Transactions;
 using UnityEngine;
 
 public class AgentAI : MonoBehaviour
 {
     public GridManager gridManager;
-    public float moveSpeed = 2f; // Speed of movement between cells
+    public float moveSpeed = 1f; // Speed of movement between cells
+    public float traceDuration = 5f; // Duration for traces to persist
 
     private Cell startCell;
+    private Cell currentCell;
     private Cell exitCell;
     private List<Cell> path;
     private bool isMoving;
 
+    bool gridGen = false;
     private void Awake()
     {
         gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
+        if (gridManager == null)
+        {
+            Debug.LogError("GridManager not found or not assigned!");
+        }
+        else
+        {
+            gridGen = true;
+        }
     }
 
     private void Start()
@@ -28,6 +40,9 @@ public class AgentAI : MonoBehaviour
 
         startCell = gridManager.grid[0, 0];
         exitCell = gridManager.exitCell;
+        currentCell = startCell;
+
+        LeaveTrace(currentCell);
 
         path = FindPath(startCell, exitCell);
 
@@ -60,6 +75,8 @@ public class AgentAI : MonoBehaviour
         Vector3 startPos = transform.position;
         Vector3 endPos = targetCell.transform.position;
 
+        LeaveTrace(currentCell); // Leave a trace at the current cell
+
         float elapsedTime = 0f;
         while (elapsedTime < 1f / moveSpeed)
         {
@@ -69,7 +86,32 @@ public class AgentAI : MonoBehaviour
         }
 
         transform.position = endPos;
+        currentCell = targetCell;
         isMoving = false;
+    }
+
+    void LeaveTrace(Cell cell)
+    {
+        if (cell.cellEvent != "AgentTrace")
+        {
+            cell.cellEvent = "AgentTrace";
+            Debug.Log($"AgentAI: Trace left at ({cell.x}, {cell.y})");
+
+            // Schedule the trace to be cleared after the specified duration
+            StartCoroutine(ClearTraceAfterDelay(cell));
+        }
+    }
+
+    IEnumerator ClearTraceAfterDelay(Cell cell)
+    {
+        yield return new WaitForSeconds(traceDuration);
+
+        // Ensure the cell's event is still the Agent's trace before clearing
+        if (cell.cellEvent == "AgentTrace")
+        {
+            cell.cellEvent = "None";
+            Debug.Log($"AgentAI: Trace cleared at ({cell.x}, {cell.y})");
+        }
     }
 
     public List<Cell> FindPath(Cell start, Cell target)
@@ -169,7 +211,19 @@ public class AgentAI : MonoBehaviour
 
             foreach (Cell cell in path)
             {
-                Gizmos.DrawSphere(cell.transform.position, 0.2f);
+                Gizmos.DrawSphere(cell.transform.position, 0.15f);
+            }
+        }
+
+        if (gridManager != null && gridGen)
+        {
+            foreach (Cell cell in gridManager.grid)
+            {
+                if (cell.cellEvent == "AgentTrace")
+                {
+                    Gizmos.color = Color.yellow;
+                    Gizmos.DrawSphere(cell.transform.position, 0.3f);
+                }
             }
         }
     }
