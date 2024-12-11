@@ -18,19 +18,15 @@ public class AgentAI : MonoBehaviour
     private bool isMoving;
 
     bool isDead = false;
-    bool gridGen = false; //check for ondrawgizmos so it won't give error on standby.
+    public bool seenTrace = false;
+    public bool foundPath = false;
+
+    [Range(0, 10)]
+    public float gameSpeed;
 
     private void Awake()
     {
         gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
-        if (gridManager == null)
-        {
-            Debug.LogError("GridManager not found or not assigned!");
-        }
-        else
-        {
-            gridGen = true;
-        }
     }
 
     private void Start()
@@ -39,13 +35,19 @@ public class AgentAI : MonoBehaviour
         Invoke("InitializePathfinding", 1.5f);
     }
 
+    private void Update()
+    {
+
+        Time.timeScale = gameSpeed;
+    }
+
     void InitializePathfinding()
     {
         Debug.Log("Agent AI: Initializing pathfinding");
 
         startCell = gridManager.grid[0, 0];
         exitCell = gridManager.exitCell;
-        
+
         //set current cell
         currentCell = startCell;
         LeaveTrace(currentCell);
@@ -68,29 +70,75 @@ public class AgentAI : MonoBehaviour
     {
         for (int i = 0; i < path.Count; i++)
         {
-            Cell currentCell = path[i]; //keep track of current cell to recalc from there
-
-            if (ShouldRecalculatePath(currentCell, i)) //recalc from current pose if picked up on EnemyTrace
+            if (!seenTrace)
             {
-                StopAllCoroutines();
-                Debug.Log("Agent AI: Recalculating path due to EnemyTrace ahead!");
-                path = FindPath(currentCell, exitCell);
+                Cell currentCell = path[i]; //keep track of current cell to recalc from there
 
-                if (path == null || path.Count == 0)
+                if (ShouldRecalculatePath(currentCell, i)) //recalc from current pose if picked up on EnemyTrace
                 {
-                    Debug.LogError("Agent AI: Unable to find a new path!");
+                    path.Clear();
+                    StartCoroutine(SearchUntilFound());
+                    //StopAllCoroutines();
                     yield break;
+                    /*Debug.Log("Agent AI: Recalculating path due to EnemyTrace ahead!");
+                    path = FindPath(currentCell, exitCell);
+
+                    if (path == null || path.Count == 0)
+                    {
+                        Debug.LogError("Agent AI: Unable to find a new path!");
+                    }
+
+                    // Restart the loop to follow the new path
+                    i = -1;
+                    path = FindPath(currentCell, exitCell);
+                    continue;*/
                 }
-
-                // Restart the loop to follow the new path
-                i = -1;
-                continue;
+                else
+                    yield return MoveToCell(currentCell);
             }
-
-            yield return MoveToCell(currentCell);
+            //else
+            //{
+            //    StartCoroutine(SearchUntilFound());
+            //}
         }
 
         Debug.Log("Agent AI: Reached the exit!");
+    }
+
+    IEnumerator SearchUntilFound()
+    {
+        //Debug.Log("asddasdadadsdad");
+        //while (!foundPath)
+        //{
+        //    yield return new WaitForSeconds(0.5f);
+        //    path = FindPath(currentCell, exitCell);
+        //    Debug.Log("Finding path");
+        //    if (path == null || path.Count == 0)
+        //    {
+        //        Debug.LogError("Agent AI: Unable to find a new path!");
+        //    }
+        //    else
+        //    {
+        //        Debug.Log("Here");
+        //        foundPath = true;
+        //    }
+        //}
+        //StartCoroutine(FollowPath());
+        yield return new WaitForSeconds(1f);
+        path = FindPath(currentCell, exitCell);
+        Debug.Log("finding path");
+
+        if(path == null || path.Count == 0)
+        {
+            Debug.LogError("Agent AI: Unable to find a new path!");
+            StartCoroutine(SearchUntilFound());
+        }
+        else
+        {
+            Debug.Log("Found path");
+            seenTrace = false;
+            StartCoroutine(FollowPath());
+        }
     }
 
     //movement logic.
@@ -122,14 +170,14 @@ public class AgentAI : MonoBehaviour
     void LeaveTrace(Cell cell)
     {
         //set cell event as trace for Enemy to pick up
-        if (cell != null )
+        if (cell != null)
         {
             Debug.Log("Leaving trace - Agent");
             cell.cellEvent = "AgentTrace";
             StartCoroutine(ClearTraceAfterDelay(cell));
         }
     }
-    
+
     //Clear the trace after a delay
     IEnumerator ClearTraceAfterDelay(Cell cell)
     {
@@ -150,6 +198,7 @@ public class AgentAI : MonoBehaviour
             Cell nextCell = path[i];
             if (nextCell.cellEvent == "EnemyTrace" || HasAdjacentEnemyTrace(nextCell))
             {
+                seenTrace = true;
                 return true;
             }
         }
@@ -171,7 +220,7 @@ public class AgentAI : MonoBehaviour
     }
 
     //Kills the Agent when touching the enemy (will expand/change in the future)
-    private void OnTriggerEnter2D(Collider2D collision)
+    /*private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.tag == "Enemy" && !isDead)
         {
@@ -185,7 +234,7 @@ public class AgentAI : MonoBehaviour
 
             Destroy(this.gameObject, 5f);
         }
-    }
+    }*/
 
     /////////////
     /// A* pathfinding logic (made by chatgpt - to be honest, i only get the theory behind it but not the intricacy of the code itself) <summary>
@@ -226,7 +275,7 @@ public class AgentAI : MonoBehaviour
 
             foreach (Cell neighbor in GetNeighbors(current))
             {
-                if (neighbor.isWall || closedSet.Contains(neighbor))
+                if (neighbor.isWall || closedSet.Contains(neighbor) || neighbor.cellEvent == "EnemyTrace")
                     continue;
 
                 int tentativeGCost = gCost[current] + 1;
@@ -292,7 +341,7 @@ public class AgentAI : MonoBehaviour
             }
         }
 
-        if (gridManager.grid != null && gridGen)
+        if (gridManager.grid != null && gridManager.grid != null)
         {
             foreach (Cell cell in gridManager.grid)
             {
