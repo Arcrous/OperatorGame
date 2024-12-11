@@ -275,8 +275,16 @@ public class AgentAI : MonoBehaviour
 
             foreach (Cell neighbor in GetNeighbors(current))
             {
-                if (neighbor.isWall || closedSet.Contains(neighbor) || neighbor.cellEvent == "EnemyTrace")
-                    continue;
+                if (seenTrace)
+                {
+                    if (neighbor.isWall || closedSet.Contains(neighbor) || neighbor.cellEvent == "EnemyTrace")
+                        continue;
+                }
+                else
+                {
+                    if (neighbor.isWall || closedSet.Contains(neighbor))
+                        continue;
+                }
 
                 int tentativeGCost = gCost[current] + 1;
 

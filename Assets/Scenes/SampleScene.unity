@@ -158,6 +158,10 @@ MonoBehaviour:
   gridManager: {fileID: 1749455302}
   moveSpeed: 1
   traceDuration: 5
+  lookAheadCells: 3
+  seenTrace: 0
+  foundPath: 0
+  gameSpeed: 1
 --- !u!212 &365204638
 SpriteRenderer:
   m_ObjectHideFlags: 0
