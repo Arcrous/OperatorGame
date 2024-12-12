@@ -20,6 +20,7 @@ public class AgentAI : MonoBehaviour
     bool isDead = false;
     public bool seenTrace = false;
     public bool foundPath = false;
+    public bool returnedToSpawn = false;
 
     [Range(0, 10)]
     public float gameSpeed;
@@ -77,53 +78,35 @@ public class AgentAI : MonoBehaviour
                 if (ShouldRecalculatePath(currentCell, i)) //recalc from current pose if picked up on EnemyTrace
                 {
                     path.Clear();
-                    StartCoroutine(SearchUntilFound());
-                    //StopAllCoroutines();
-                    yield break;
-                    /*Debug.Log("Agent AI: Recalculating path due to EnemyTrace ahead!");
-                    path = FindPath(currentCell, exitCell);
-
-                    if (path == null || path.Count == 0)
+                    if (!returnedToSpawn)
                     {
-                        Debug.LogError("Agent AI: Unable to find a new path!");
+                        StartCoroutine(ReturnToSpawn());
                     }
 
-                    // Restart the loop to follow the new path
-                    i = -1;
-                    path = FindPath(currentCell, exitCell);
-                    continue;*/
+
+                    yield break;
                 }
                 else
                     yield return MoveToCell(currentCell);
             }
-            //else
-            //{
-            //    StartCoroutine(SearchUntilFound());
-            //}
+            else if (!returnedToSpawn && seenTrace)
+            {
+                Cell currentCell = path[i];
+                yield return MoveToCell(currentCell);
+            }
         }
-
+        if (!returnedToSpawn && seenTrace)
+        {
+            returnedToSpawn = true;
+            StartCoroutine(SearchUntilFound());
+        }
         Debug.Log("Agent AI: Reached the exit!");
     }
 
+    //loop until a path is found
     IEnumerator SearchUntilFound()
     {
-        //Debug.Log("asddasdadadsdad");
-        //while (!foundPath)
-        //{
-        //    yield return new WaitForSeconds(0.5f);
-        //    path = FindPath(currentCell, exitCell);
-        //    Debug.Log("Finding path");
-        //    if (path == null || path.Count == 0)
-        //    {
-        //        Debug.LogError("Agent AI: Unable to find a new path!");
-        //    }
-        //    else
-        //    {
-        //        Debug.Log("Here");
-        //        foundPath = true;
-        //    }
-        //}
-        //StartCoroutine(FollowPath());
+        returnedToSpawn = false;
         yield return new WaitForSeconds(1f);
         path = FindPath(currentCell, exitCell);
         Debug.Log("finding path");
@@ -139,6 +122,15 @@ public class AgentAI : MonoBehaviour
             seenTrace = false;
             StartCoroutine(FollowPath());
         }
+    }
+
+    IEnumerator ReturnToSpawn()
+    {
+        yield return new WaitForSeconds(0.3f);
+        path = FindPath(currentCell, startCell);
+        Debug.Log("Running to start");
+        moveSpeed = 2f;
+        StartCoroutine(FollowPath());
     }
 
     //movement logic.
