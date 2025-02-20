@@ -161,6 +161,7 @@ MonoBehaviour:
   lookAheadCells: 3
   seenTrace: 0
   foundPath: 0
+  returnedToSpawn: 0
   gameSpeed: 1
 --- !u!212 &365204638
 SpriteRenderer:
@@ -201,9 +202,9 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -126714303
-  m_SortingLayer: -3
+  m_SortingLayer: 2
   m_SortingOrder: 1
-  m_Sprite: {fileID: -1525641869, guid: 11de1c0d559079743922406f958398f1, type: 3}
+  m_Sprite: {fileID: -1955065028, guid: 11de1c0d559079743922406f958398f1, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -598,7 +599,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1749455303}
   - component: {fileID: 1749455302}
-  - component: {fileID: 1749455304}
   m_Layer: 0
   m_Name: GridManager
   m_TagString: Untagged
@@ -625,6 +625,7 @@ MonoBehaviour:
   exitCell: {fileID: 0}
   agentObj: {fileID: 365204636}
   enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}
+  groundPrefab: {fileID: 8469061335310955438, guid: a6599673d01e5d5488fb4d35da29c512, type: 3}
 --- !u!4 &1749455303
 Transform:
   m_ObjectHideFlags: 0
@@ -640,15 +641,3 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!210 &1749455304
-SortingGroup:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1749455301}
-  m_Enabled: 1
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_SortAtRoot: 0

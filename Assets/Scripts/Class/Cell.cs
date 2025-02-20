@@ -19,6 +19,8 @@ public class Cell : MonoBehaviour
 
     //store sprites
     [SerializeField] Sprite groundSprite;
+    [SerializeField] Sprite groundSprite2;
+    [SerializeField] Sprite groundSprite3;
     [SerializeField] Sprite wallSprite;
     [SerializeField] Sprite exitSprite;
 
@@ -36,8 +38,19 @@ public class Cell : MonoBehaviour
         hCost = 0;
         parent = null;
 
-        spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
-
+        int randomIndex = Random.Range(0, 2);
+        switch (randomIndex)
+        {
+            case 0:
+                spriteRend.sprite = groundSprite;
+                break;
+            case 1:
+                spriteRend.sprite = groundSprite2;
+                break;
+            case 2:
+                spriteRend.sprite = groundSprite3;
+                break;
+        }
     }
 
     //Set cell event
@@ -51,6 +64,7 @@ public class Cell : MonoBehaviour
     {
         isWall = true;
         cellEvent = "Wall";
+        spriteRend.sprite = wallSprite;
     }
 
     //Set as exit
@@ -58,6 +72,7 @@ public class Cell : MonoBehaviour
     {
         isExit = true;
         cellEvent = "Exit";
+        spriteRend .sprite = exitSprite;
     }
 
     //Calc the heuristic cost

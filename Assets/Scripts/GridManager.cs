@@ -19,6 +19,7 @@ public class GridManager : MonoBehaviour
 
     public GameObject agentObj;
     public GameObject enemyPrefab;
+    public GameObject groundPrefab;
 
     void Start()
     {
@@ -71,11 +72,14 @@ public class GridManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 Vector3 position = new Vector3(x * cellSize, y * cellSize, 0);
-                GameObject cellObj = new GameObject($"Cell_{x}_{y}"); //replace with cellPrefab later for sprite
+                //GameObject cellObj = new GameObject($"Cell_{x}_{y}"); //replace with cellPrefab later for sprite
+                GameObject cellObj = Instantiate(groundPrefab, position, Quaternion.identity);
+                cellObj.name = $"Cell_{x}_{y}";
                 cellObj.transform.position = position;
                 cellObj.transform.parent = transform;
 
-                Cell cell = cellObj.AddComponent<Cell>();
+                //Cell cell = cellObj.AddComponent<Cell>();
+                Cell cell = cellObj.GetComponent<Cell>();
                 cell.Initialize(x, y);
                 grid[x, y] = cell;
 
@@ -284,13 +288,13 @@ public class GridManager : MonoBehaviour
                 {
                     if (grid[x, y].isWall)
                     {
-                        Gizmos.color = Color.black;
-                        Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
+                        Gizmos.color = Color.white;
+                        //Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
                     }
                     else if (grid[x, y].isExit)
                     {
                         Gizmos.color = Color.green;
-                        Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
+                        //Gizmos.DrawCube(position, Vector3.one * (cellSize * 0.9f));
                     }
                 }
             }

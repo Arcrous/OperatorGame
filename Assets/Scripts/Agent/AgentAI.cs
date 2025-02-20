@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Transactions;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class AgentAI : MonoBehaviour
 {
@@ -212,21 +213,27 @@ public class AgentAI : MonoBehaviour
     }
 
     //Kills the Agent when touching the enemy (will expand/change in the future)
-    /*private void OnTriggerEnter2D(Collider2D collision)
+    private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.tag == "Enemy" && !isDead)
         {
             isDead = true;
             StopAllCoroutines();
-            Debug.Log("Agent has died");
+            Debug.Log("Agent has died, reloading in 5s");
 
             SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
             spriteRend.color = Color.red;
             gameObject.transform.Rotate(0f, 0f, 90f, Space.Self);
 
-            Destroy(this.gameObject, 5f);
+            //Destroy(this.gameObject, 5f);
+            Invoke("ReloadScene", 5f);
         }
-    }*/
+    }
+
+    void ReloadScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
 
     /////////////
     /// A* pathfinding logic (made by chatgpt - to be honest, i only get the theory behind it but not the intricacy of the code itself) <summary>
