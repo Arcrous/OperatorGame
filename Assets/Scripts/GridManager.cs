@@ -12,6 +12,7 @@ public class GridManager : MonoBehaviour
 
     public Cell[,] grid;
     public Cell exitCell;
+    public Cell weaponCell;
     Cell exitAdj1;
     Cell exitAdj2;
     Cell exitAdj3;
@@ -138,6 +139,11 @@ public class GridManager : MonoBehaviour
         exitAdj4 = grid[exitX - 1, exitY];
 
         exitCell.SetAsExit();
+    }
+
+    void SetRandomWeaponSpawn()
+    {
+        //Ensure the weapon doesn't spawn on the exit or the start
     }
 
     void SpawnEnemy() //Spawn enemies

@@ -99,6 +99,7 @@ public class AgentAI : MonoBehaviour
         if (!returnedToSpawn && seenTrace)
         {
             returnedToSpawn = true;
+            moveSpeed = 1f;
             StartCoroutine(SearchUntilFound());
         }
         Debug.Log("Agent AI: Reached the exit!");
