@@ -8,6 +8,7 @@ public class Cell : MonoBehaviour
     public int y;
     public bool isExit;
     public bool isWall;
+    public bool isWeapon;
     public string cellEvent;
 
     //A* pathfinding heuristic cost
@@ -23,6 +24,7 @@ public class Cell : MonoBehaviour
     [SerializeField] Sprite groundSprite3;
     [SerializeField] Sprite wallSprite;
     [SerializeField] Sprite exitSprite;
+    [SerializeField] Sprite weaponSprite;
 
     [SerializeField] SpriteRenderer spriteRend;
 
@@ -33,6 +35,7 @@ public class Cell : MonoBehaviour
         this.y = y;
         isWall = false;
         isExit = false;
+        isWeapon = false;
         cellEvent = "None";
         gCost = 0;
         hCost = 0;
@@ -73,6 +76,18 @@ public class Cell : MonoBehaviour
         isExit = true;
         cellEvent = "Exit";
         spriteRend .sprite = exitSprite;
+    }
+
+    public void SetAsWeapon()
+    {
+        isWeapon = true;
+        cellEvent = "Weapon";
+
+        GameObject weapon = new GameObject("Weapon");
+        weapon.transform.SetParent(this.transform);
+        weapon.transform.position = transform.position;
+        weapon.AddComponent<SpriteRenderer>().sprite = weaponSprite;
+        Debug.Log("Spawned weapon");
     }
 
     //Calc the heuristic cost

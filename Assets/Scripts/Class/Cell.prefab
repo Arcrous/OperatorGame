@@ -101,6 +101,7 @@ MonoBehaviour:
   y: 0
   isExit: 0
   isWall: 0
+  isWeapon: 0
   cellEvent: 
   gCost: 0
   hCost: 0
@@ -110,4 +111,5 @@ MonoBehaviour:
   groundSprite3: {fileID: 972588881, guid: 7e38232432147494986a52fb6a311322, type: 3}
   wallSprite: {fileID: -1652455211, guid: 7e38232432147494986a52fb6a311322, type: 3}
   exitSprite: {fileID: -672939713, guid: 7e38232432147494986a52fb6a311322, type: 3}
+  weaponSprite: {fileID: -592627454, guid: 1701d6adb01d389438438fe3dcf70b08, type: 3}
   spriteRend: {fileID: 9222801336301578785}

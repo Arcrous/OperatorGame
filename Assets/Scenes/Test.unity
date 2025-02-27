@@ -162,6 +162,7 @@ MonoBehaviour:
   seenTrace: 0
   foundPath: 0
   returnedToSpawn: 0
+  hasWeaponSprite: {fileID: -2115566948, guid: 11de1c0d559079743922406f958398f1, type: 3}
   gameSpeed: 1
 --- !u!212 &365204638
 SpriteRenderer:
@@ -623,6 +624,7 @@ MonoBehaviour:
   cellSize: 1
   wallDensity: 0.4
   exitCell: {fileID: 0}
+  weaponCell: {fileID: 0}
   agentObj: {fileID: 365204636}
   enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}
   groundPrefab: {fileID: 8469061335310955438, guid: a6599673d01e5d5488fb4d35da29c512, type: 3}

@@ -57,6 +57,10 @@ public class GridManager : MonoBehaviour
             else
             {
                 Debug.Log("Maze was unsolvable. Regenerating...");
+                foreach (Transform child in this.transform)
+                {
+                    Destroy(child.gameObject);
+                }
             }
 
             yield return null; // Wait a frame before retrying
@@ -99,13 +103,14 @@ public class GridManager : MonoBehaviour
     {
         Debug.Log("Generating maze...");
         SetRandomExit();
+        SetRandomWeaponSpawn();
 
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
                 // Skip start and exit cells + cells adjacent to it
-                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4)
+                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4 || grid[x,y] == weaponCell)
                     continue;
 
                 if (Random.value < wallDensity)
@@ -143,7 +148,25 @@ public class GridManager : MonoBehaviour
 
     void SetRandomWeaponSpawn()
     {
-        //Ensure the weapon doesn't spawn on the exit or the start
+        int weaponX;
+        int weaponY;
+
+        int weaponCount = 0;
+
+        do
+        {
+            //Ensure the exit is at least 1 rows away from the exit
+            weaponX = Random.Range(1, width - 1);
+            weaponY = Random.Range(1, height - 1);
+
+            weaponCount++;
+            Debug.Log("Weapon count: " + weaponCount);
+        }
+        while (weaponCount == 0 && (grid[weaponX, weaponY] == exitCell || grid[weaponX, weaponY] == grid[weaponX, weaponY].isWall)); //Ensure the weapon isn't on exitCell, wall Cell
+
+        weaponCell = grid[weaponX, weaponY];
+
+        weaponCell.SetAsWeapon();
     }
 
     void SpawnEnemy() //Spawn enemies

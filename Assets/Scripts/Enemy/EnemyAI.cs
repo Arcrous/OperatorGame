@@ -12,6 +12,7 @@ public class EnemyAI : MonoBehaviour
     private Cell currentCell; // Tracks the enemy's current cell
     private List<Cell> path; // Current path for patrol
     private bool isMoving;
+    private bool isDead = false;
 
     private void Awake()
     {
@@ -21,6 +22,19 @@ public class EnemyAI : MonoBehaviour
     private void Start()
     {
         InitializePatrol();
+    }
+
+    public void Die()
+    {
+        isDead = true;
+        StopAllCoroutines();
+        Debug.Log("Enemy has died");
+
+        SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
+        spriteRend.color = Color.red;
+        gameObject.transform.Rotate(0f, 0f, 90f, Space.Self);
+
+        Destroy(this.gameObject, 5f);
     }
 
     void InitializePatrol()
@@ -274,25 +288,28 @@ public class EnemyAI : MonoBehaviour
     //Visualisation gizmos
     private void OnDrawGizmos()
     {
-        if (gridManager != null)
+        if (!isDead)
         {
-            foreach (Cell cell in gridManager.grid)
+            if (gridManager != null)
             {
-                if (cell.cellEvent == "EnemyTrace")
+                foreach (Cell cell in gridManager.grid)
                 {
-                    Gizmos.color = Color.yellow;
-                    Gizmos.DrawSphere(cell.transform.position, 0.3f);
+                    if (cell.cellEvent == "EnemyTrace")
+                    {
+                        Gizmos.color = Color.yellow;
+                        Gizmos.DrawSphere(cell.transform.position, 0.3f);
+                    }
                 }
             }
-        }
 
-        if (path != null)
-        {
-            Gizmos.color = Color.red;
-
-            foreach (Cell cell in path)
+            if (path != null)
             {
-                Gizmos.DrawSphere(cell.transform.position, 0.15f);
+                Gizmos.color = Color.red;
+
+                foreach (Cell cell in path)
+                {
+                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
+                }
             }
         }
     }

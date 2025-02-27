@@ -14,14 +14,18 @@ public class AgentAI : MonoBehaviour
     private Cell startCell;
     private Cell exitCell;
     private Cell currentCell;
+    private Cell weaponCell;
 
     private List<Cell> path;
     private bool isMoving;
+    private bool hasWeapon;
 
     bool isDead = false;
     public bool seenTrace = false;
     public bool foundPath = false;
     public bool returnedToSpawn = false;
+
+    [SerializeField] Sprite hasWeaponSprite;
 
     [Range(0, 10)]
     public float gameSpeed;
@@ -49,13 +53,26 @@ public class AgentAI : MonoBehaviour
 
         startCell = gridManager.grid[0, 0];
         exitCell = gridManager.exitCell;
+        weaponCell = gridManager.weaponCell;
 
         //set current cell
         currentCell = startCell;
         LeaveTrace(currentCell);
 
+        List<Cell> pathToExit = FindPath(startCell, exitCell);
+        List<Cell> pathToWeapon = FindPath(startCell, weaponCell);
+
+        if (pathToWeapon != null && pathToExit != null && pathToWeapon.Count < pathToExit.Count)
+        {
+            path = pathToWeapon;
+        }
+        else
+        {
+            path = pathToExit;
+        }
+
         //get the path from start to exit.
-        path = FindPath(startCell, exitCell);
+        //path = FindPath(startCell, exitCell);
 
         //move along the path
         if (path != null && path.Count > 0)
@@ -72,29 +89,35 @@ public class AgentAI : MonoBehaviour
     {
         for (int i = 0; i < path.Count; i++)
         {
-            if (!seenTrace)
+            if (!hasWeapon)
             {
-                Cell currentCell = path[i]; //keep track of current cell to recalc from there
-
-                if (ShouldRecalculatePath(currentCell, i)) //recalc from current pose if picked up on EnemyTrace
+                if (!seenTrace)
                 {
-                    path.Clear();
-                    if (!returnedToSpawn)
+                    Cell currentCell = path[i]; //keep track of current cell to recalc from there
+
+                    if (ShouldRecalculatePath(currentCell, i)) //recalc from current pose if picked up on EnemyTrace
                     {
-                        StartCoroutine(ReturnToSpawn());
+                        path.Clear();
+                        if (!returnedToSpawn)
+                        {
+                            StartCoroutine(ReturnToSpawn());
+                        }
+
+
+                        yield break;
                     }
-
-
-                    yield break;
+                    else
+                        yield return MoveToCell(currentCell);
                 }
-                else
+                else if (!returnedToSpawn && seenTrace)
+                {
+                    Cell currentCell = path[i];
                     yield return MoveToCell(currentCell);
+                }
             }
-            else if (!returnedToSpawn && seenTrace)
-            {
-                Cell currentCell = path[i];
+            else
                 yield return MoveToCell(currentCell);
-            }
+
         }
         if (!returnedToSpawn && seenTrace)
         {
@@ -103,6 +126,21 @@ public class AgentAI : MonoBehaviour
             StartCoroutine(SearchUntilFound());
         }
         Debug.Log("Agent AI: Reached the exit!");
+
+        if (currentCell == weaponCell)
+        {
+            hasWeapon = true;
+            SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
+            spriteRend.sprite = hasWeaponSprite;
+
+            path = FindPath(weaponCell, exitCell);
+            if (path != null && path.Count > 0)
+            {
+                StartCoroutine(FollowPath()); // Continue moving to exit
+                Debug.Log("Picked up weapon, going to exit");
+            }
+            yield break;
+        }
     }
 
     //loop until a path is found
@@ -216,18 +254,32 @@ public class AgentAI : MonoBehaviour
     //Kills the Agent when touching the enemy (will expand/change in the future)
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.tag == "Enemy" && !isDead)
+        if (!hasWeapon)
         {
-            isDead = true;
-            StopAllCoroutines();
-            Debug.Log("Agent has died, reloading in 5s");
+            if (collision.tag == "Enemy" && !isDead)
+            {
+                isDead = true;
+                StopAllCoroutines();
+                Debug.Log("Agent has died, reloading in 5s");
 
-            SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
-            spriteRend.color = Color.red;
-            gameObject.transform.Rotate(0f, 0f, 90f, Space.Self);
+                SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
+                spriteRend.color = Color.red;
+                gameObject.transform.Rotate(0f, 0f, 90f, Space.Self);
 
-            //Destroy(this.gameObject, 5f);
-            Invoke("ReloadScene", 5f);
+                //Destroy(this.gameObject, 5f);
+                Invoke("ReloadScene", 5f);
+            }
+        }
+        else
+        {
+            if (collision.tag == "Enemy" && !isDead)
+            {
+                EnemyAI enemy = collision.gameObject.GetComponent<EnemyAI>();
+                if (enemy != null)
+                {
+                    enemy.Die();
+                }
+            }
         }
     }
 
