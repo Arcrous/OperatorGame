@@ -8,6 +8,7 @@ public class EnemyAI : MonoBehaviour
     public float moveSpeed = 1f;
     public int patrolRange = 5; // Limits how far the enemy can move from its starting position
     public float traceDuration = 5f;
+    [SerializeField] int lookAheadCells = 1;
 
     private Cell currentCell; // Tracks the enemy's current cell
     private List<Cell> path; // Current path for patrol
@@ -69,7 +70,7 @@ public class EnemyAI : MonoBehaviour
 
     IEnumerator FollowPath()
     {
-        while (true)
+        while (!isDead)
         {
             if (path != null && path.Count > 0)
             {
@@ -94,6 +95,10 @@ public class EnemyAI : MonoBehaviour
             }
         }
     }
+
+    //shouldchaseplayer
+    //followtrace
+    //returntopatrol
 
     IEnumerator MoveToCell(Cell targetCell)
     {
