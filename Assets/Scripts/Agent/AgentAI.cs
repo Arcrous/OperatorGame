@@ -18,7 +18,7 @@ public class AgentAI : MonoBehaviour
 
     private List<Cell> path;
     private bool isMoving;
-    private bool hasWeapon;
+    [SerializeField] private bool hasWeapon;
 
     bool isDead = false;
     public bool seenTrace = false;
@@ -116,9 +116,23 @@ public class AgentAI : MonoBehaviour
                 }
             }
             else
+            {
+                Cell currentCell = path[i];
                 yield return MoveToCell(currentCell);
-
+            }
         }
+
+        if (currentCell == weaponCell)
+        {
+            hasWeapon = true;
+            SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
+            spriteRend.sprite = hasWeaponSprite;
+            Debug.Log("Agent AI: Picked up weapon, going to exit");
+            path.Clear();
+            StartCoroutine(RipAndTear());
+            yield break;
+        }
+
         if (!returnedToSpawn && seenTrace)
         {
             returnedToSpawn = true;
@@ -126,21 +140,6 @@ public class AgentAI : MonoBehaviour
             StartCoroutine(SearchUntilFound());
         }
         Debug.Log("Agent AI: Reached the exit!");
-
-        if (currentCell == weaponCell)
-        {
-            hasWeapon = true;
-            SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
-            spriteRend.sprite = hasWeaponSprite;
-
-            path = FindPath(weaponCell, exitCell);
-            if (path != null && path.Count > 0)
-            {
-                StartCoroutine(FollowPath()); // Continue moving to exit
-                Debug.Log("Picked up weapon, going to exit");
-            }
-            yield break;
-        }
     }
 
     //loop until a path is found
@@ -148,7 +147,17 @@ public class AgentAI : MonoBehaviour
     {
         returnedToSpawn = false;
         yield return new WaitForSeconds(1f);
-        path = FindPath(currentCell, exitCell);
+        List<Cell> pathToExit = FindPath(startCell, exitCell);
+        List<Cell> pathToWeapon = FindPath(startCell, weaponCell);
+
+        if (pathToWeapon != null && pathToExit != null && pathToWeapon.Count < pathToExit.Count)
+        {
+            path = pathToWeapon;
+        }
+        else
+        {
+            path = pathToExit;
+        }
         Debug.Log("finding path");
 
         if(path == null || path.Count == 0)
@@ -164,12 +173,25 @@ public class AgentAI : MonoBehaviour
         }
     }
 
+    //calc path from current cell to start/weapon, then compare it
+
+    //calc path to current cell to start
     IEnumerator ReturnToSpawn()
     {
         yield return new WaitForSeconds(0.3f);
         path = FindPath(currentCell, startCell);
         Debug.Log("Running to start");
         moveSpeed = 2f;
+        StartCoroutine(FollowPath());
+    }
+
+    //calc path to exit from current cell
+    IEnumerator RipAndTear()
+    {
+        yield return new WaitForSeconds(0.3f);
+        path = FindPath(currentCell, exitCell);
+        Debug.Log("Until it is done");
+        moveSpeed = 1.5f;
         StartCoroutine(FollowPath());
     }
 
@@ -408,7 +430,7 @@ public class AgentAI : MonoBehaviour
                 if (cell.cellEvent == "AgentTrace")
                 {
                     Gizmos.color = Color.yellow;
-                    Gizmos.DrawSphere(cell.transform.position, 0.3f);
+                    Gizmos.DrawSphere(cell.transform.position, 0.2f);
                 }
             }
         }

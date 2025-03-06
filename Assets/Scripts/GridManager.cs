@@ -59,6 +59,7 @@ public class GridManager : MonoBehaviour
                 Debug.Log("Maze was unsolvable. Regenerating...");
                 foreach (Transform child in this.transform)
                 {
+                    yield return null;
                     Destroy(child.gameObject);
                 }
             }
@@ -148,6 +149,8 @@ public class GridManager : MonoBehaviour
 
     void SetRandomWeaponSpawn()
     {
+        int amountToSpawn = Random.Range(2, 5);
+
         int weaponX;
         int weaponY;
 
