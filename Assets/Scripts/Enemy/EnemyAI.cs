@@ -8,12 +8,14 @@ public class EnemyAI : MonoBehaviour
     public float moveSpeed = 1f;
     public int patrolRange = 5; // Limits how far the enemy can move from its starting position
     public float traceDuration = 5f;
-    [SerializeField] int lookAheadCells = 1;
+    //[SerializeField] int lookAheadCells = 1;
 
     private Cell currentCell; // Tracks the enemy's current cell
     private List<Cell> path; // Current path for patrol
     private bool isMoving;
     private bool isDead = false;
+    public bool seenTrace = false;
+    [SerializeField] private bool isChasing = false;
 
     private void Awake()
     {
@@ -23,6 +25,7 @@ public class EnemyAI : MonoBehaviour
     private void Start()
     {
         InitializePatrol();
+        StartCoroutine(CheckForAgentTrace());
     }
 
     public void Die()
@@ -70,7 +73,7 @@ public class EnemyAI : MonoBehaviour
 
     IEnumerator FollowPath()
     {
-        while (!isDead)
+        while (!isDead & !isChasing)
         {
             if (path != null && path.Count > 0)
             {
@@ -97,8 +100,76 @@ public class EnemyAI : MonoBehaviour
     }
 
     //shouldchaseplayer
-    //followtrace
-    //returntopatrol
+    IEnumerator CheckForAgentTrace()
+    {
+        while (!isDead)
+        {
+            if (DetectAgentTrace())
+            {
+                Debug.Log("Enemy detected Agent's trace! Chasing...");
+                isChasing = true;
+                StopCoroutine(FollowPath());
+                StartCoroutine(ChaseAgent());
+            }
+            else if (isChasing)
+            {
+                Debug.Log("Lost Agent's trace. Returning to patrol.");
+                isChasing = false;
+                StartCoroutine(ReturnToPatrol());
+            }
+            yield return new WaitForSeconds(1f);
+        }
+    }
+
+    bool DetectAgentTrace()
+    {
+        foreach (Cell neighbor in GetNeighbors(currentCell))
+        {
+            if (neighbor.cellEvent == "AgentTrace")
+            {
+                seenTrace = true;
+                return true;
+            }
+        }
+        return false;
+    }
+    IEnumerator ChaseAgent()
+    {
+        while (isChasing && !isDead)
+        {
+            Cell targetCell = FindNearestAgentTrace();
+            if (targetCell != null)
+            {
+                path = FindPath(currentCell, targetCell);
+                if (path != null && path.Count > 0)
+                {
+                    foreach (Cell cell in path)
+                    {
+                        yield return MoveToCell(cell);
+                    }
+                }
+            }
+            yield return new WaitForSeconds(0.5f);
+        }
+    }
+    Cell FindNearestAgentTrace()
+    {
+        foreach (Cell cell in gridManager.grid)
+        {
+            if (cell.cellEvent == "AgentTrace")
+            {
+                return cell;
+            }
+        }
+        return null;
+    }
+    IEnumerator ReturnToPatrol()
+    {
+        GenerateNewPatrolPath();
+        StartCoroutine(FollowPath());
+        yield break;
+    }
+
 
     IEnumerator MoveToCell(Cell targetCell)
     {
@@ -302,7 +373,7 @@ public class EnemyAI : MonoBehaviour
                     if (cell.cellEvent == "EnemyTrace")
                     {
                         Gizmos.color = Color.yellow;
-                        Gizmos.DrawSphere(cell.transform.position, 0.3f);
+                        Gizmos.DrawSphere(cell.transform.position, 0.16f);
                     }
                 }
             }

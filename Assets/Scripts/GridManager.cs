@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
+    bool destroyGrid = false;
+
     public int width = 10; //grid width
     public int height = 10; //grid height
     public float cellSize = 1f; //how big the cell is
@@ -57,14 +59,30 @@ public class GridManager : MonoBehaviour
             else
             {
                 Debug.Log("Maze was unsolvable. Regenerating...");
-                foreach (Transform child in this.transform)
-                {
-                    yield return null;
-                    Destroy(child.gameObject);
-                }
+                destroyGrid = true;
+                StartCoroutine(DestroyGrid()); // Destroy the grid before retrying
             }
 
             yield return null; // Wait a frame before retrying
+        }
+    }
+
+    IEnumerator DestroyGrid()
+    {
+        yield return new WaitForSeconds(0.1f);
+        while (transform.childCount > 0 && destroyGrid)
+        {
+            yield return new WaitForSeconds(0.1f);
+
+            if (transform.childCount > 0)  // Double-check before accessing
+            {
+                Destroy(transform.GetChild(0).gameObject);
+            }
+            else // If all children are destroyed
+            {
+                Debug.Log("Grid destroyed!");
+                destroyGrid = false;
+            }
         }
     }
 

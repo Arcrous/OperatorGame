@@ -103,7 +103,6 @@ public class AgentAI : MonoBehaviour
                             StartCoroutine(ReturnToSpawn());
                         }
 
-
                         yield break;
                     }
                     else
@@ -315,6 +314,7 @@ public class AgentAI : MonoBehaviour
     /////////////
     public List<Cell> FindPath(Cell start, Cell target)
     {
+        
         List<Cell> openSet = new List<Cell> { start };
         HashSet<Cell> closedSet = new HashSet<Cell>();
 
@@ -430,7 +430,7 @@ public class AgentAI : MonoBehaviour
                 if (cell.cellEvent == "AgentTrace")
                 {
                     Gizmos.color = Color.yellow;
-                    Gizmos.DrawSphere(cell.transform.position, 0.2f);
+                    Gizmos.DrawSphere(cell.transform.position, 0.16f);
                 }
             }
         }
