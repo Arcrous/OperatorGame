@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
-    bool destroyGrid = false;
+    [SerializeField] bool destroyGrid = false;
 
     public int width = 10; //grid width
     public int height = 10; //grid height
@@ -59,30 +59,29 @@ public class GridManager : MonoBehaviour
             else
             {
                 Debug.Log("Maze was unsolvable. Regenerating...");
+
                 destroyGrid = true;
-                StartCoroutine(DestroyGrid()); // Destroy the grid before retrying
+                // Destroy the grid before retrying
+                if (destroyGrid)
+                {
+                    yield return new WaitForSeconds(0.01f);
+                    while (transform.childCount > 0 && destroyGrid)
+                    {
+                        yield return new WaitForSeconds(0.01f);
+                        if (transform.childCount == 0) // If all children are destroyed
+                        {
+                            Debug.Log("Grid destroyed!");
+                            destroyGrid = false;
+                        }
+                        else if (transform.childCount > 0)  // Double-check before accessing
+                        {
+                            Destroy(transform.GetChild(0).gameObject);
+                        }
+                    }
+                }
             }
 
             yield return null; // Wait a frame before retrying
-        }
-    }
-
-    IEnumerator DestroyGrid()
-    {
-        yield return new WaitForSeconds(0.1f);
-        while (transform.childCount > 0 && destroyGrid)
-        {
-            yield return new WaitForSeconds(0.1f);
-
-            if (transform.childCount > 0)  // Double-check before accessing
-            {
-                Destroy(transform.GetChild(0).gameObject);
-            }
-            else // If all children are destroyed
-            {
-                Debug.Log("Grid destroyed!");
-                destroyGrid = false;
-            }
         }
     }
 

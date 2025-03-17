@@ -11,6 +11,7 @@ public class EnemyAI : MonoBehaviour
     //[SerializeField] int lookAheadCells = 1;
 
     private Cell currentCell; // Tracks the enemy's current cell
+    [SerializeField]  private Cell startCell; // Tracks the enemy's starting cell
     private List<Cell> path; // Current path for patrol
     private bool isMoving;
     private bool isDead = false;
@@ -43,12 +44,16 @@ public class EnemyAI : MonoBehaviour
 
     void InitializePatrol()
     {
+
         // Set the enemy's starting cell to a random walkable cell avoiding the first 3 rows
         currentCell = GetRandomWalkableCellAvoidingFirstRows(3);
         if (currentCell != null)
         {
             //update location to accomadate for relocating after spawn, so trace works properly.
             transform.position = currentCell.transform.position;
+            
+            startCell = currentCell; //input a value
+            
             LeaveTrace(currentCell, "EnemyTrace");
             
             //gen the path and follow it.
@@ -123,6 +128,7 @@ public class EnemyAI : MonoBehaviour
 
     bool DetectAgentTrace()
     {
+        Debug.Log("Detected Agent trace");
         foreach (Cell neighbor in GetNeighbors(currentCell))
         {
             if (neighbor.cellEvent == "AgentTrace")
@@ -135,6 +141,7 @@ public class EnemyAI : MonoBehaviour
     }
     IEnumerator ChaseAgent()
     {
+        Debug.Log("Chasing Agent");
         while (isChasing && !isDead)
         {
             Cell targetCell = FindNearestAgentTrace();
@@ -152,8 +159,10 @@ public class EnemyAI : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
     }
+
     Cell FindNearestAgentTrace()
     {
+        Debug.Log("Finding nearest Agent trace");
         foreach (Cell cell in gridManager.grid)
         {
             if (cell.cellEvent == "AgentTrace")
@@ -163,13 +172,44 @@ public class EnemyAI : MonoBehaviour
         }
         return null;
     }
+
     IEnumerator ReturnToPatrol()
     {
-        GenerateNewPatrolPath();
-        StartCoroutine(FollowPath());
+        Debug.Log("Returning to patrol");
+        GoBackToSpawn();
+        StartCoroutine(ReturnToSpawn());
         yield break;
     }
 
+    void GoBackToSpawn()
+    {
+        //get a random cell with range to set as target
+        Cell targetCell = startCell;
+        if (targetCell != null)
+        {
+            path = FindPath(currentCell, targetCell);
+        }
+    }
+
+    IEnumerator ReturnToSpawn()
+    {
+        Debug.Log("Returning to spawn");
+        while (!isDead & !isChasing)
+        {
+            if (path != null && path.Count > 0)
+            {
+                foreach (Cell cell in path)
+                {
+                    yield return MoveToCell(cell);
+                }
+            }
+            else
+            {
+                GenerateNewPatrolPath();
+                StartCoroutine(FollowPath());
+            }
+        }
+    }
 
     IEnumerator MoveToCell(Cell targetCell)
     {
