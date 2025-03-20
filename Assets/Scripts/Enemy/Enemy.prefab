@@ -102,7 +102,10 @@ MonoBehaviour:
   gridManager: {fileID: 0}
   moveSpeed: 1
   patrolRange: 3
-  traceDuration: 3
+  traceDuration: 5
+  startCell: {fileID: 0}
+  seenTrace: 0
+  isChasing: 0
 --- !u!50 &-8878242631809728167
 Rigidbody2D:
   serializedVersion: 4

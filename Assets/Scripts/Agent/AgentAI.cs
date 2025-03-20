@@ -49,7 +49,7 @@ public class AgentAI : MonoBehaviour
 
     void InitializePathfinding()
     {
-        Debug.Log("Agent AI: Initializing pathfinding");
+        //Debug.Log("Agent AI: Initializing pathfinding");
 
         startCell = gridManager.grid[0, 0];
         exitCell = gridManager.exitCell;
@@ -81,7 +81,7 @@ public class AgentAI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Agent AI: No path found to the exit!");
+            //Debug.LogError("Agent AI: No path found to the exit!");
         }
     }
 
@@ -126,7 +126,7 @@ public class AgentAI : MonoBehaviour
             hasWeapon = true;
             SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
             spriteRend.sprite = hasWeaponSprite;
-            Debug.Log("Agent AI: Picked up weapon, going to exit");
+            //Debug.Log("Agent AI: Picked up weapon, going to exit");
             path.Clear();
             StartCoroutine(RipAndTear());
             yield break;
@@ -138,7 +138,7 @@ public class AgentAI : MonoBehaviour
             moveSpeed = 1f;
             StartCoroutine(SearchUntilFound());
         }
-        Debug.Log("Agent AI: Reached the exit!");
+        //Debug.Log("Agent AI: Reached the exit!");
     }
 
     //loop until a path is found
@@ -157,16 +157,16 @@ public class AgentAI : MonoBehaviour
         {
             path = pathToExit;
         }
-        Debug.Log("finding path");
+        //Debug.Log("finding path");
 
         if(path == null || path.Count == 0)
         {
-            Debug.LogError("Agent AI: Unable to find a new path!");
+            //Debug.LogError("Agent AI: Unable to find a new path!");
             StartCoroutine(SearchUntilFound());
         }
         else
         {
-            Debug.Log("Found path");
+            //Debug.Log("Found path");
             seenTrace = false;
             StartCoroutine(FollowPath());
         }
@@ -179,7 +179,7 @@ public class AgentAI : MonoBehaviour
     {
         yield return new WaitForSeconds(0.3f);
         path = FindPath(currentCell, startCell);
-        Debug.Log("Running to start");
+        //Debug.Log("Running to start");
         moveSpeed = 2f;
         StartCoroutine(FollowPath());
     }
@@ -189,7 +189,7 @@ public class AgentAI : MonoBehaviour
     {
         yield return new WaitForSeconds(0.3f);
         path = FindPath(currentCell, exitCell);
-        Debug.Log("Until it is done");
+        //Debug.Log("Until it is done");
         moveSpeed = 1.5f;
         StartCoroutine(FollowPath());
     }
@@ -225,7 +225,7 @@ public class AgentAI : MonoBehaviour
         //set cell event as trace for Enemy to pick up
         if (cell != null)
         {
-            Debug.Log("Leaving trace - Agent");
+            //Debug.Log("Leaving trace - Agent");
             cell.cellEvent = "AgentTrace";
             StartCoroutine(ClearTraceAfterDelay(cell));
         }
@@ -281,7 +281,7 @@ public class AgentAI : MonoBehaviour
             {
                 isDead = true;
                 StopAllCoroutines();
-                Debug.Log("Agent has died, reloading in 5s");
+                //Debug.Log("Agent has died, reloading in 5s");
 
                 SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
                 spriteRend.color = Color.red;
@@ -411,26 +411,29 @@ public class AgentAI : MonoBehaviour
     }
 
     //Visualisation gizmos
-    private void OnDrawGizmos()
+    private void OnDrawGizmosSelected()
     {
-        if (path != null)
+        if (!isDead)
         {
-            Gizmos.color = Color.green;
-
-            foreach (Cell cell in path)
+            if (path != null)
             {
-                Gizmos.DrawSphere(cell.transform.position, 0.15f);
-            }
-        }
+                Gizmos.color = Color.green;
 
-        if (gridManager.grid != null && gridManager.grid != null)
-        {
-            foreach (Cell cell in gridManager.grid)
-            {
-                if (cell.cellEvent == "AgentTrace")
+                foreach (Cell cell in path)
                 {
-                    Gizmos.color = Color.yellow;
-                    Gizmos.DrawSphere(cell.transform.position, 0.16f);
+                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
+                }
+            }
+
+            if (gridManager.grid != null && gridManager.grid != null)
+            {
+                foreach (Cell cell in gridManager.grid)
+                {
+                    if (cell.cellEvent == "AgentTrace")
+                    {
+                        Gizmos.color = Color.cyan;
+                        Gizmos.DrawSphere(cell.transform.position, 0.16f);
+                    }
                 }
             }
         }
