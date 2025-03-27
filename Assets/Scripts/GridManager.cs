@@ -24,9 +24,17 @@ public class GridManager : MonoBehaviour
     public GameObject enemyPrefab;
     public GameObject groundPrefab;
 
+    [Range(0, 10)]
+    public float gameSpeed;
+
     void Start()
     {
         StartCoroutine(GenerateValidMazeCoroutine());
+    }
+
+    private void Update()
+    {
+        Time.timeScale = gameSpeed;
     }
 
     //Generate a maze until it's solvable by tracing from exit to start using A*

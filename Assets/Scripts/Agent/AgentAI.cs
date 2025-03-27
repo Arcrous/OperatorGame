@@ -27,9 +27,6 @@ public class AgentAI : MonoBehaviour
 
     [SerializeField] Sprite hasWeaponSprite;
 
-    [Range(0, 10)]
-    public float gameSpeed;
-
     private void Awake()
     {
         gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
@@ -44,7 +41,6 @@ public class AgentAI : MonoBehaviour
     private void Update()
     {
 
-        Time.timeScale = gameSpeed;
     }
 
     void InitializePathfinding()
@@ -204,14 +200,15 @@ public class AgentAI : MonoBehaviour
         isMoving = true;
         Vector3 startPos = transform.position;
         Vector3 endPos = targetCell.transform.position;
+        float journeyTime = 1f / moveSpeed;
+        float elapsedTime = 0f;
 
         LeaveTrace(currentCell); // Leave a trace at the current cell
 
-        float elapsedTime = 0f;
-        while (elapsedTime < 1f / moveSpeed)
+        while (elapsedTime < journeyTime)
         {
-            elapsedTime += Time.deltaTime * moveSpeed;
-            transform.position = Vector3.Lerp(startPos, endPos, elapsedTime);
+            elapsedTime += Time.deltaTime;
+            transform.position = Vector3.Lerp(startPos, endPos, elapsedTime / journeyTime);
             yield return null;
         }
 
@@ -411,11 +408,11 @@ public class AgentAI : MonoBehaviour
     }
 
     //Visualisation gizmos
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
         if (!isDead)
         {
-            if (path != null)
+            /*if (path != null)
             {
                 Gizmos.color = Color.green;
 
@@ -423,7 +420,7 @@ public class AgentAI : MonoBehaviour
                 {
                     Gizmos.DrawSphere(cell.transform.position, 0.15f);
                 }
-            }
+            }*/
 
             if (gridManager.grid != null && gridManager.grid != null)
             {

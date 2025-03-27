@@ -78,20 +78,15 @@ public class EnemyAI : MonoBehaviour
 
     IEnumerator FollowPath()
     {
-        while (!isDead & !isChasing)
+        while (!isDead && !isChasing)
         {
             if (path != null && path.Count > 0)
             {
-                foreach (Cell cell in path)
-                {
-                    yield return MoveToCell(cell);
-                }
+                for (int i = 0; i < path.Count; i++)
+                    yield return MoveToCell(path[i]);
 
-                path.Reverse(); // Reverse the path to return to the start
-                foreach (Cell cell in path)
-                {
-                    yield return MoveToCell(cell);
-                }
+                for (int i = path.Count - 1; i >= 0; i--)
+                    yield return MoveToCell(path[i]);
 
                 // Generate a new patrol path after completing the loop
                 GenerateNewPatrolPath();
@@ -111,14 +106,19 @@ public class EnemyAI : MonoBehaviour
         {
             if (DetectAgentTrace())
             {
-                Debug.Log("Enemy detected Agent's trace! Chasing...");
-                isChasing = true;
-                StopCoroutine(FollowPath());
-                StartCoroutine(ChaseAgent());
+                if (!isChasing)
+                {
+                    Debug.Log("Enemy detected Agent's trace! Chasing...");
+                    isChasing = true;
+                    StopCoroutine(FollowPath());
+                    StartCoroutine(ChaseAgent());
+                }
             }
             else if (isChasing)
             {
-                Debug.Log("Lost Agent's trace. Returning to patrol.");
+                Debug.Log("Lost Agent's trace. Waiting before returning to patrol.");
+                yield return new WaitForSeconds(2f); // Add delay before returning to patrol
+
                 isChasing = false;
                 StartCoroutine(ReturnToPatrol());
             }
@@ -142,18 +142,24 @@ public class EnemyAI : MonoBehaviour
     IEnumerator ChaseAgent()
     {
         Debug.Log("Chasing Agent");
+
+        Cell previousTarget = null;
+
         while (isChasing && !isDead)
         {
             Cell targetCell = FindNearestAgentTrace();
-            if (targetCell != null)
+
+            if (targetCell != null && targetCell != previousTarget)
             {
                 path = FindPath(currentCell, targetCell);
-                if (path != null && path.Count > 0)
+                previousTarget = targetCell;
+            }
+
+            if (path != null && path.Count > 0)
+            {
+                foreach (Cell cell in path)
                 {
-                    foreach (Cell cell in path)
-                    {
-                        yield return MoveToCell(cell);
-                    }
+                    yield return MoveToCell(cell);
                 }
             }
             yield return new WaitForSeconds(0.5f);
@@ -163,14 +169,23 @@ public class EnemyAI : MonoBehaviour
     Cell FindNearestAgentTrace()
     {
         Debug.Log("Finding nearest Agent trace");
-        foreach (Cell cell in gridManager.grid)
+
+        Cell nearestCell = null;
+        int minDistance = int.MaxValue;
+
+        foreach (Cell cell in GetNeighbors(currentCell)) // Only check neighbors
         {
             if (cell.cellEvent == "AgentTrace")
             {
-                return cell;
+                int distance = CalculateHeuristic(currentCell, cell);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    nearestCell = cell;
+                }
             }
         }
-        return null;
+        return nearestCell;
     }
 
     IEnumerator ReturnToPatrol()
@@ -213,28 +228,25 @@ public class EnemyAI : MonoBehaviour
 
     IEnumerator MoveToCell(Cell targetCell)
     {
-        //prevent double input.
-        if (isMoving)
-            yield break;
+        if (isMoving) yield break;
 
         isMoving = true;
-
         Vector3 startPos = transform.position;
         Vector3 endPos = targetCell.transform.position;
+        float journeyTime = 1f / moveSpeed;
+        float elapsedTime = 0f;
 
-        // Leave a trace in the current cell before moving
         LeaveTrace(currentCell, "EnemyTrace");
 
-        float elapsedTime = 0f;
-        while (elapsedTime < 1f / moveSpeed)
+        while (elapsedTime < journeyTime)
         {
-            elapsedTime += Time.deltaTime * moveSpeed;
-            transform.position = Vector3.Lerp(startPos, endPos, elapsedTime);
+            elapsedTime += Time.deltaTime;
+            transform.position = Vector3.Lerp(startPos, endPos, elapsedTime / journeyTime);
             yield return null;
         }
 
-        transform.position = endPos; //update position.
-        currentCell = targetCell; // Update current cell after moving
+        transform.position = endPos;
+        currentCell = targetCell;
         isMoving = false;
     }
 
@@ -343,6 +355,8 @@ public class EnemyAI : MonoBehaviour
     List<Cell> GetNeighbors(Cell cell)
     {
         List<Cell> neighbors = new List<Cell>();
+
+        if (gridManager?.grid == null) return neighbors; // Prevent errors
 
         if (cell.x > 0) neighbors.Add(gridManager.grid[cell.x - 1, cell.y]);
         if (cell.x < gridManager.width - 1) neighbors.Add(gridManager.grid[cell.x + 1, cell.y]);
