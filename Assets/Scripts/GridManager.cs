@@ -29,6 +29,7 @@ public class GridManager : MonoBehaviour
 
     void Start()
     {
+        gameSpeed = 1f;
         StartCoroutine(GenerateValidMazeCoroutine());
     }
 
