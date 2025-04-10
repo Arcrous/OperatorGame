@@ -8,7 +8,6 @@ public class EnemyAI : MonoBehaviour
     public float moveSpeed = 1f;
     public int patrolRange = 5; // Limits how far the enemy can move from its starting position
     public float traceDuration = 5f;
-    //[SerializeField] int lookAheadCells = 1;
 
     private Cell currentCell; // Tracks the enemy's current cell
     [SerializeField]  private Cell startCell; // Tracks the enemy's starting cell
@@ -20,9 +19,13 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] bool foundReturn;
     [SerializeField] bool returned;
 
+    private Pathfinding pathfinding;
+
     private void Awake()
     {
         gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
+
+        pathfinding = new Pathfinding(gridManager);
     }
 
     private void Start()
@@ -74,7 +77,7 @@ public class EnemyAI : MonoBehaviour
         Cell targetCell = GetRandomCellWithinRange(currentCell, patrolRange);
         if (targetCell != null)
         {
-            path = FindPath(currentCell, targetCell);
+            path = pathfinding.FindPath(currentCell, targetCell);
         }
     }
 
@@ -131,7 +134,7 @@ public class EnemyAI : MonoBehaviour
 
     bool DetectAgentTrace()
     {
-        foreach (Cell neighbor in GetNeighbors(currentCell))
+        foreach (Cell neighbor in pathfinding.GetNeighbors(currentCell))
         {
             if (neighbor.cellEvent == "AgentTrace")
             {
@@ -150,7 +153,7 @@ public class EnemyAI : MonoBehaviour
             Cell targetCell = FindNearestAgentTrace();
             if (targetCell != null)
             {
-                path = FindPath(currentCell, targetCell);
+                path = pathfinding.FindPath(currentCell, targetCell);
                 if (path != null && path.Count > 0)
                 {
                     foreach (Cell cell in path)
@@ -167,13 +170,14 @@ public class EnemyAI : MonoBehaviour
     {
         //Debug.Log("Finding nearest Agent trace");
         Cell closestTrace = null;
-        int minDistance = patrolRange; // Limit to patrol range
+        int minDistance = 1; // Limit to patrol range
 
         foreach (Cell cell in gridManager.grid)
         {
-            if (cell.cellEvent == "AgentTrace")
+            int distanceFromStart = pathfinding.CalculateHeuristic(startCell, cell);
+            if (cell.cellEvent == "AgentTrace" && distanceFromStart <= patrolRange)
             {
-                int distance = CalculateHeuristic(currentCell, cell);
+                int distance = pathfinding.CalculateHeuristic(currentCell, cell);
                 if (distance <= minDistance)
                 {
                     minDistance = distance;
@@ -199,7 +203,7 @@ public class EnemyAI : MonoBehaviour
         Cell targetCell = startCell;
         if (targetCell != null)
         {
-            path = FindPath(currentCell, targetCell);
+            path = pathfinding.FindPath(currentCell, targetCell);
             if (path != null && path.Count > 0)
             {
                 foundReturn = true;
@@ -208,30 +212,27 @@ public class EnemyAI : MonoBehaviour
 
         if(foundReturn)
         {
-            StartCoroutine(ReturnToSpawn());
-        }
+           StartCoroutine(ReturnToSpawn());
+        }            
     }
 
     IEnumerator ReturnToSpawn()
     {
-        Debug.Log("Returning to spawn");
-        while (!isDead & !isChasing)
+        if (path == null || path.Count == 0)
         {
-            if (path != null && path.Count > 0 && !returned)
-            {
-                foreach (Cell cell in path)
-                {
-                    yield return MoveToCell(cell);
-                }
-                returned = true;
-            }
-            else
-            {
-                Debug.LogWarning("Patrol routine started.");
-                GenerateNewPatrolPath();
-                StartCoroutine(FollowPath());
-            }
+            Debug.LogWarning("No return path. Reinitializing patrol.");
+            GenerateNewPatrolPath();
+            StartCoroutine(FollowPath());
+            yield break;
         }
+
+        foreach (Cell cell in path)
+        {
+            yield return MoveToCell(cell);
+        }
+
+        returned = true;
+        StartCoroutine(FollowPath());
     }
 
     IEnumerator MoveToCell(Cell targetCell)
@@ -279,105 +280,6 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    /////////////
-    /// A* pathfinding logic (made by chatgpt - to be honest, i only get the theory behind it but not the intricacy of the code itself) <summary>
-    /////////////
-    List<Cell> FindPath(Cell start, Cell target)
-    {
-        List<Cell> openSet = new List<Cell> { start };
-        HashSet<Cell> closedSet = new HashSet<Cell>();
-        Dictionary<Cell, int> gCost = new Dictionary<Cell, int>();
-        Dictionary<Cell, int> hCost = new Dictionary<Cell, int>();
-        Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
-
-        gCost[start] = 0;
-        hCost[start] = CalculateHeuristic(start, target);
-
-        while (openSet.Count > 0)
-        {
-            Cell current = GetLowestFCostCell(openSet, gCost, hCost);
-
-            if (current == target)
-            {
-                return RetracePath(cameFrom, start, target);
-            }
-
-            openSet.Remove(current);
-            closedSet.Add(current);
-
-            foreach (Cell neighbor in GetNeighbors(current))
-            {
-                if (neighbor.isWall || closedSet.Contains(neighbor))
-                    continue;
-
-                int tentativeGCost = gCost[current] + 1;
-
-                if (!gCost.ContainsKey(neighbor) || tentativeGCost < gCost[neighbor])
-                {
-                    gCost[neighbor] = tentativeGCost;
-                    hCost[neighbor] = CalculateHeuristic(neighbor, target);
-                    cameFrom[neighbor] = current;
-
-                    if (!openSet.Contains(neighbor))
-                        openSet.Add(neighbor);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    Cell GetLowestFCostCell(List<Cell> openSet, Dictionary<Cell, int> gCost, Dictionary<Cell, int> hCost)
-    {
-        Cell bestCell = openSet[0];
-        int bestFCost = gCost[bestCell] + hCost[bestCell];
-
-        foreach (Cell cell in openSet)
-        {
-            int fCost = gCost[cell] + hCost[cell];
-            if (fCost < bestFCost)
-            {
-                bestCell = cell;
-                bestFCost = fCost;
-            }
-        }
-
-        return bestCell;
-    }
-
-    List<Cell> RetracePath(Dictionary<Cell, Cell> cameFrom, Cell start, Cell target)
-    {
-        List<Cell> path = new List<Cell>();
-        Cell current = target;
-
-        while (current != start)
-        {
-            path.Add(current);
-            current = cameFrom[current];
-        }
-
-        path.Reverse();
-        return path;
-    }
-
-    List<Cell> GetNeighbors(Cell cell)
-    {
-        List<Cell> neighbors = new List<Cell>();
-
-        if (gridManager?.grid == null) return neighbors; // Prevent errors
-
-        if (cell.x > 0) neighbors.Add(gridManager.grid[cell.x - 1, cell.y]);
-        if (cell.x < gridManager.width - 1) neighbors.Add(gridManager.grid[cell.x + 1, cell.y]);
-        if (cell.y > 0) neighbors.Add(gridManager.grid[cell.x, cell.y - 1]);
-        if (cell.y < gridManager.height - 1) neighbors.Add(gridManager.grid[cell.x, cell.y + 1]);
-
-        return neighbors;
-    }
-
-    int CalculateHeuristic(Cell a, Cell b)
-    {
-        return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
-    }
 
     Cell GetRandomWalkableCellAvoidingFirstRows(int minRows)
     {

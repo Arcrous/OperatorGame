@@ -134,7 +134,12 @@ public class AgentAI : MonoBehaviour
             moveSpeed = 1f;
             StartCoroutine(SearchUntilFound());
         }
-        //Debug.Log("Agent AI: Reached the exit!");
+
+        if (currentCell == exitCell)
+        {
+            Invoke("ReloadScene", 5f);
+            Debug.Log("Agent AI: Reached the exit!");
+        }
     }
 
     //loop until a path is found
