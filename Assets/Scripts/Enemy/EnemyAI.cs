@@ -6,36 +6,63 @@ public class EnemyAI : MonoBehaviour
 {
     public GridManager gridManager;
     public float moveSpeed = 1f;
-    public int patrolRange; // Limits how far the enemy can move from its starting position
+
+    [Range(1, 10)] // Limits how far the enemy can move from its starting position
+    public int patrolRange = 3;
+
     public float traceDuration = 5f;
 
     private Cell currentCell; // Tracks the enemy's current cell
     private List<Cell> path; // Current path for patrol
+    private List<Cell> walkableCells;
     private bool isMoving;
+    [SerializeField] private bool isFollowingPath = false;
     private bool isDead = false;
     public bool seenTrace = false;
     [SerializeField] private bool isChasing = false;
-    private Pathfinding pathfinding;
 
+    private Pathfinding pathfinding;
+    [SerializeField] Sprite[] sprites;
+
+    #region Setup region
     private void Awake()
     {
-        gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
+        if (gridManager == null)
+        {
+            gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
+        }
 
         pathfinding = new Pathfinding(gridManager);
+
+        AssignRandomSprite(); // Assign a random sprite at the start
+    }
+
+    void AssignRandomSprite() //Set a random sprite when spawn (purely cosmetic)
+    {
+        if (sprites != null && sprites.Length > 0)
+        {
+            SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+            if (spriteRenderer != null)
+            {
+                int randomIndex = Random.Range(0, sprites.Length);
+                spriteRenderer.sprite = sprites[randomIndex];
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Sprites array is empty or not assigned.");
+        }
     }
 
     private void Start()
     {
-        patrolRange = Random.Range(3, 9);
         InitializePatrol();
-        StartCoroutine(CheckForAgentTrace());
     }
 
-    public void Die()
+    public void Die() //Death, simple 
     {
         isDead = true;
         StopAllCoroutines();
-        Debug.Log("Enemy has died");
 
         SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
         spriteRend.color = Color.red;
@@ -44,9 +71,8 @@ public class EnemyAI : MonoBehaviour
         Destroy(this.gameObject, 5f);
     }
 
-    void InitializePatrol()
+    void InitializePatrol() //Setup the enemy when it first spawns
     {
-
         // Set the enemy's starting cell to a random walkable cell avoiding the first 3 rows
         currentCell = GetRandomWalkableCellAvoidingFirstRows(3);
         if (currentCell != null)
@@ -60,143 +86,224 @@ public class EnemyAI : MonoBehaviour
             GenerateNewPatrolPath();
             StartCoroutine(FollowPath());
         }
-        else
-        {
-            //Debug.LogError("EnemyAI: Failed to find a valid starting cell.");
-        }
     }
+    #endregion
 
-    void GenerateNewPatrolPath()
+    #region Patrol logic
+    void GenerateNewPatrolPath() //Generate a new path for the enemy
     {
         //get a random cell with range to set as target
         Cell targetCell = GetRandomCellWithinRange(currentCell, patrolRange);
         if (targetCell != null)
         {
             path = pathfinding.FindPath(currentCell, targetCell);
+            if (path == null || path.Count == 0)
+            {
+                Debug.LogWarning("Generated path is null or empty.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Target cell is null. Cannot generate a patrol path.");
         }
     }
 
-    IEnumerator FollowPath()
+    IEnumerator FollowPath() //Follow the generated path
     {
-        while (!isDead && !isChasing)
+        if (isFollowingPath) yield break; // Prevent multiple calls to FollowPath
+        isFollowingPath = true;
+
+        // Check if the path is valid before proceeding
+        int maxRetries = 10;
+        int retries = 0;
+        while (path == null || path.Count == 0)
         {
+            GenerateNewPatrolPath();
+            retries++;
+            if (retries >= maxRetries)
+            {
+                Debug.LogError("Failed to generate a valid patrol path after multiple attempts.");
+                Invoke("Die", 10f);
+                isFollowingPath = false;
+                yield break;
+            }
+        }
+
+        while (!isChasing) // Check if the enemy is chasing the player
+        {
+            //Check if the path is not empty and contains valid cells, if not the move along it
             if (path != null && path.Count > 0)
             {
-                for (int i = 0; i < path.Count; i++)
-                    yield return MoveToCell(path[i]);
+                if (!isChasing)
+                {
+                    for (int i = 0; i < path.Count; i++)
+                    {
+                        if (path[i] == null) continue; // Skip null cells
+                        yield return MoveToCell(path[i]);
 
-                for (int i = path.Count - 1; i >= 0; i--)
-                    yield return MoveToCell(path[i]);
+                        // Check for a trace ahead.
+                        if (IsThereAgentTraceAhead(currentCell, i))
+                        {
+                            isChasing = true;
+                            isFollowingPath = false;
+                            StartCoroutine(ChaseTrace());
+                            yield break;
+                        }
+                    }
+                }
 
-                // Generate a new patrol path after completing the loop
+                if (!isChasing)
+                {
+                    for (int i = path.Count - 1; i >= 0; i--)
+                    {
+                        if (path[i] == null) continue; // Skip null cells
+                        yield return MoveToCell(path[i]);
+
+                        // Check for a trace ahead.
+                        if (IsThereAgentTraceAhead(currentCell, i))
+                        {
+                            isChasing = true;
+                            isFollowingPath = false;
+                            StartCoroutine(ChaseTrace());
+                            yield break;
+                        }
+                    }
+                }
+
+                yield return new WaitForSeconds(1f); // Wait for a second before starting the loop again
+                //Generate a new patrol path after completing the loop
                 GenerateNewPatrolPath();
             }
             else
             {
-                //Debug.LogWarning("EnemyAI: No valid path found. Regenerating...");
+                Debug.LogWarning("EnemyAI: No valid path found. Regenerating...");
                 GenerateNewPatrolPath();
             }
         }
     }
+    #endregion
 
-    //shouldchaseplayer
-    IEnumerator CheckForAgentTrace()
+    #region Chase logic
+    //Check if the cells ahead for AgentTrace, use a bool function to return true or false,
+    bool IsThereAgentTraceAhead(Cell currentCell, int currentIndex)
     {
-        while (!isDead)
-        {
-            if (DetectAgentTrace())
-            {
-                if (!isChasing)
-                {
-                    Debug.Log("Enemy detected Agent's trace! Chasing...");
-                    isChasing = true;
-                    StopCoroutine(FollowPath());
-                    StartCoroutine(ChaseAgent());
-                }
-            }
-            else if (isChasing)
-            {
-                yield return new WaitForSeconds(5f); // Add delay before returning to patrol
-                Debug.Log("Lost Agent's trace. Waiting before returning to patrol.");
+        int endIndex = Mathf.Min(currentIndex + 2, path.Count);
 
-                isChasing = false;
-                StartCoroutine(ReturnToPatrol());
-                //Debug.Log("Lost Agent's trace");
-            }
-            yield return new WaitForSeconds(1f);
-        }
-    }
-
-    bool DetectAgentTrace()
-    {
-        foreach (Cell neighbor in pathfinding.GetNeighbors(currentCell))
+        for (int i = currentIndex + 1; i < endIndex; i++)
         {
-            if (neighbor.cellEvent == "AgentTrace")
+            Cell nextCell = path[i];
+            if (nextCell.cellEvent == "AgentTrace")
             {
-                //Debug.Log("Detected Agent trace");
                 seenTrace = true;
                 return true;
             }
         }
+
         return false;
     }
-    IEnumerator ChaseAgent()
+
+    // Helper method: check immediate neighbors (up, down, left, right)
+    // Returns a neighbor cell containing a trace if found, null otherwise.
+    Cell FindAdjacentTrace()
     {
-        Debug.Log("Chasing Agent");
-        Cell previousTarget = null;
-
-        while (isChasing && !isDead)
+        int[,] directions = new int[,] { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+        for (int i = 0; i < 4; i++)
         {
-            Cell targetCell = FindNearestAgentTrace();
-
-            if (path == null || path.Count == 0) yield break;
-
-            if (targetCell != null && targetCell != previousTarget)
+            int newX = currentCell.x + directions[i, 0];
+            int newY = currentCell.y + directions[i, 1];
+            if (newX >= 0 && newX < gridManager.width && newY >= 0 && newY < gridManager.height)
             {
-                path = pathfinding.FindPath(currentCell, targetCell);
-                previousTarget = targetCell;
-            }
-
-            if (path != null && path.Count > 0)
-            {
-                foreach (Cell cell in path)
+                Cell neighbour = gridManager.grid[newX, newY];
+                if (neighbour.cellEvent == "AgentTrace")
                 {
-                    yield return MoveToCell(cell);
+                    return neighbour;
                 }
             }
-            yield return new WaitForSeconds(0.2f); // Prevent infinite loops
         }
+        return null;
     }
 
-    Cell FindNearestAgentTrace()
+    // Helper method: scan the grid for the nearest cell with a trace based on Manhattan distance.
+    Cell FindNearestTraceCell()
     {
-        //Debug.Log("Finding nearest Agent trace");
-        Cell nearestCell = null;
+        Cell nearest = null;
         int minDistance = int.MaxValue;
-
-        foreach (Cell cell in pathfinding.GetNeighbors(currentCell)) // Only check neighbors
+        for (int x = 0; x < gridManager.width; x++)
         {
-            if (cell.cellEvent == "AgentTrace")
+            for (int y = 0; y < gridManager.height; y++)
             {
-                int distance = pathfinding.CalculateHeuristic(currentCell, cell);
-                if (distance < minDistance)
+                Cell cell = gridManager.grid[x, y];
+                if (cell.cellEvent == "AgentTrace")
                 {
-                    minDistance = distance;
-                    nearestCell = cell;
+                    int distance = Mathf.Abs(cell.x - currentCell.x) + Mathf.Abs(cell.y - currentCell.y);
+                    if (distance < minDistance)
+                    {
+                        minDistance = distance;
+                        nearest = cell;
+                    }
                 }
             }
         }
-        return nearestCell;
+        return nearest;
     }
 
-    IEnumerator ReturnToPatrol()
+    // The chase coroutine: once triggered, the enemy will continuously follow traces.
+    IEnumerator ChaseTrace()
     {
-        yield return new WaitForSeconds(2f); // Delay before returning to patrol
-        Debug.Log("Returning to patrol");
+        Debug.Log("Chase initiated.");
+        while (isChasing)
+        {
+            // First, check if any adjacent cell contains a trace.
+            Cell adjacentTrace = FindAdjacentTrace();
+            if (adjacentTrace != null)
+            {
+                Debug.Log("Chasing adjacent trace.");
+                yield return MoveToCell(adjacentTrace);
+            }
+            else
+            {
+                // Otherwise, search the entire grid for the nearest trace.
+                Cell targetTrace = FindNearestTraceCell();
+                if (targetTrace != null)
+                {
+                    List<Cell> chasePath = pathfinding.FindPath(currentCell, targetTrace);
+                    if (chasePath != null && chasePath.Count > 0)
+                    {
+                        foreach (Cell cell in chasePath)
+                        {
+                            yield return MoveToCell(cell);
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("No valid path to trace found.");
+                        isChasing = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    // If no trace is found anywhere, stop chasing and return to patrol.
+                    Debug.Log("No trace found, returning to patrol.");
+                    isChasing = false;
+                    break;
+                }
+            }
+            yield return new WaitForSeconds(0.1f); // Small delay to avoid a tight loop.
+        }
+        // Resume patrol behavior after chasing.
+        path.Clear(); // Clear the path to avoid confusion
+        GenerateNewPatrolPath(); // Generate a new patrol path
         StartCoroutine(FollowPath());
-        isChasing = false;
     }
+    //if true, stop patrol and start chasing the player by following traces. Once reaching the targeted cell containing a trace, check if there's any other trace in the vicinity, if so, follow it. If not, return to patrol.
 
+    //This function makes the enemy return to patrol
+    #endregion
+
+    #region Movement logic (probably don't need further editing)
+
+    // Move the enemy to the target cell, this method handles movement
     IEnumerator MoveToCell(Cell targetCell)
     {
         if (isMoving) yield break;
@@ -220,7 +327,9 @@ public class EnemyAI : MonoBehaviour
         currentCell = targetCell;
         isMoving = false;
     }
+    #endregion
 
+    #region Trace related stuff
     void LeaveTrace(Cell cell, string traceType)
     {
         //set cell event as trace for Agent to pick up.
@@ -241,25 +350,40 @@ public class EnemyAI : MonoBehaviour
             cell.cellEvent = "None";
         }
     }
+    #endregion
 
-
-    Cell GetRandomWalkableCellAvoidingFirstRows(int minRows)
+    #region Setup related stuff
+    void CacheWalkableCells()
     {
-        List<Cell> candidates = new List<Cell>();
-
+        walkableCells = new List<Cell>();
         for (int x = 0; x < gridManager.width; x++)
         {
-            for (int y = minRows; y < gridManager.height; y++)
+            for (int y = 0; y < gridManager.height; y++)
             {
                 Cell cell = gridManager.grid[x, y];
                 if (!cell.isWall)
                 {
-                    candidates.Add(cell);
+                    walkableCells.Add(cell);
                 }
             }
         }
+    }
 
-        return candidates[Random.Range(0, candidates.Count)];
+    Cell GetRandomWalkableCellAvoidingFirstRows(int minRows)
+    {
+        if (walkableCells == null || walkableCells.Count == 0)
+        {
+            CacheWalkableCells();
+        }
+
+        List<Cell> candidates = walkableCells.FindAll(cell => cell.y >= minRows);
+        if (candidates.Count > 0)
+        {
+            return candidates[Random.Range(0, candidates.Count)];
+        }
+
+        Debug.LogError("No valid walkable cells found.");
+        return null;
     }
 
     Cell GetRandomCellWithinRange(Cell start, int range)
@@ -284,14 +408,32 @@ public class EnemyAI : MonoBehaviour
             }
         }
 
-        return candidates[Random.Range(0, candidates.Count)];
-    }
+        if (candidates.Count > 0)
+        {
+            return candidates[Random.Range(0, candidates.Count)];
+        }
 
+        Debug.LogWarning("No valid cells found within range.");
+        return null;
+    }
+    #endregion
+
+    #region Visualization related stuff
     //Visualisation gizmos
     private void OnDrawGizmos()
     {
         if (!isDead)
         {
+            if (path != null)
+            {
+                Gizmos.color = Color.red;
+
+                foreach (Cell cell in path)
+                {
+                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
+                }
+            }
+
             if (gridManager != null)
             {
                 foreach (Cell cell in gridManager.grid)
@@ -303,16 +445,7 @@ public class EnemyAI : MonoBehaviour
                     }
                 }
             }
-
-            if (path != null)
-            {
-                Gizmos.color = Color.red;
-
-                foreach (Cell cell in path)
-                {
-                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
-                }
-            }
         }
     }
+    #endregion
 }

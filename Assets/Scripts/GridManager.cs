@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
+    [Header("Grid Related")]
     [SerializeField] bool destroyGrid = false;
 
     public int width = 10; //grid width
@@ -20,12 +21,20 @@ public class GridManager : MonoBehaviour
     Cell exitAdj3;
     Cell exitAdj4;
 
+    [Header("Prefab References")]
     public GameObject agentObj;
     public GameObject enemyPrefab;
     public GameObject groundPrefab;
 
-    [Range(0, 10)]
+    [Header("Game Speed")]
+    [Range(0, 30)]
     public float gameSpeed;
+
+    [Header("Enemy Spawning")]
+    [Range(1, 10)]
+    [SerializeField] int enemyCount = 1; //number of enemies to spawn
+    [SerializeField] bool randomEnemyCount = false;
+
 
     void Start()
     {
@@ -49,7 +58,7 @@ public class GridManager : MonoBehaviour
             yield return StartCoroutine(GenerateMazeCoroutine()); //Generate a maze after
 
             // Validate the maze
-            Debug.Log("Validating maze...");
+            //Debug.Log("Validating maze...");
             Cell startCell = grid[0, 0];
             List<Cell> path = FindPath(exitCell, startCell); // Find path from exit to start
 
@@ -81,7 +90,7 @@ public class GridManager : MonoBehaviour
                         yield return new WaitForSeconds(0.01f);
                         if (transform.childCount == 0) // If all children are destroyed
                         {
-                            Debug.Log("Grid destroyed!");
+                            //Debug.Log("Grid destroyed!");
                             destroyGrid = false;
                         }
                         else if (transform.childCount > 0)  // Double-check before accessing
@@ -98,7 +107,7 @@ public class GridManager : MonoBehaviour
 
     IEnumerator CreateGridCoroutine() //Create a grid 
     {
-        Debug.Log("Creating grid...");
+        //Debug.Log("Creating grid...");
         grid = new Cell[width, height];
 
         for (int x = 0; x < width; x++)
@@ -125,12 +134,12 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        Debug.Log("Grid created!");
+        //Debug.Log("Grid created!");
     }
 
     IEnumerator GenerateMazeCoroutine() //Places walls randomly and place an exit
     {
-        Debug.Log("Generating maze...");
+        //Debug.Log("Generating maze...");
         SetRandomExit();
         SetRandomWeaponSpawn();
 
@@ -155,7 +164,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        Debug.Log("Maze generated!");
+        //Debug.Log("Maze generated!");
     }
 
     void SetRandomExit() //Place an exit
@@ -191,7 +200,7 @@ public class GridManager : MonoBehaviour
             weaponY = Random.Range(1, height - 1);
 
             weaponCount++;
-            Debug.Log("Weapon count: " + weaponCount);
+            //Debug.Log("Weapon count: " + weaponCount);
         }
         while (weaponCount == 0 && (grid[weaponX, weaponY] == exitCell || grid[weaponX, weaponY] == grid[weaponX, weaponY].isWall)); //Ensure the weapon isn't on exitCell, wall Cell
 
@@ -202,11 +211,14 @@ public class GridManager : MonoBehaviour
 
     IEnumerator SpawnEnemy() //Spawn enemies
     {
-        int amountToSpawn = Random.Range(2, 5);
-        for (int x = 0; x < amountToSpawn; x++)
+        if (randomEnemyCount)
         {
-            Debug.Log("Spawning enemy");
-            yield return new WaitForSeconds(1f);
+            enemyCount = Random.Range(1, 5);
+        }
+        for (int x = 0; x < enemyCount; x++)
+        {
+            //Debug.Log("Spawning enemy");
+            yield return new WaitForSeconds(.2f);
             GameObject enemy = Instantiate(enemyPrefab);
         }
         //enemy.transform.SetParent(transform);

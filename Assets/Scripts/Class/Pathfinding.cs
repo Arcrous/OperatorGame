@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Pathfinding : MonoBehaviour
+public class Pathfinding
 {
     public GridManager gridManager;
 
@@ -101,12 +101,23 @@ public class Pathfinding : MonoBehaviour
     {
         List<Cell> neighbors = new List<Cell>();
 
-        if (gridManager?.grid == null) return neighbors; // Prevent errors
+        // Check the four cardinal directions (up, down, left, right)
+        int[,] directions = new int[,] { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } };
 
-        if (cell.x > 0) neighbors.Add(gridManager.grid[cell.x - 1, cell.y]);
-        if (cell.x < gridManager.width - 1) neighbors.Add(gridManager.grid[cell.x + 1, cell.y]);
-        if (cell.y > 0) neighbors.Add(gridManager.grid[cell.x, cell.y - 1]);
-        if (cell.y < gridManager.height - 1) neighbors.Add(gridManager.grid[cell.x, cell.y + 1]);
+        for (int i = 0; i < directions.GetLength(0); i++)
+        {
+            int nx = cell.x + directions[i, 0];
+            int ny = cell.y + directions[i, 1];
+
+            if (nx >= 0 && nx < gridManager.width && ny >= 0 && ny < gridManager.height)
+            {
+                Cell neighbor = gridManager.grid[nx, ny];
+                if (!neighbor.isWall)
+                {
+                    neighbors.Add(neighbor);
+                }
+            }
+        }
 
         return neighbors;
     }

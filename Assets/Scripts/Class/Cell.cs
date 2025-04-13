@@ -75,7 +75,7 @@ public class Cell : MonoBehaviour
     {
         isExit = true;
         cellEvent = "Exit";
-        spriteRend .sprite = exitSprite;
+        spriteRend.sprite = exitSprite;
     }
 
     public void SetAsWeapon()
@@ -87,7 +87,6 @@ public class Cell : MonoBehaviour
         weapon.transform.SetParent(this.transform);
         weapon.transform.position = transform.position;
         weapon.AddComponent<SpriteRenderer>().sprite = weaponSprite;
-        Debug.Log("Spawned weapon");
     }
 
     //Calc the heuristic cost

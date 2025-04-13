@@ -103,10 +103,17 @@ MonoBehaviour:
   moveSpeed: 1
   patrolRange: 3
   traceDuration: 7
-  startCell: {fileID: 0}
   seenTrace: 0
   isChasing: 0
-  foundReturn: 0
+  sprites:
+  - {fileID: -1603082062, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1693848273, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1913320928, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1972094267, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 405604967, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1782914244, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1759064542, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 779846576, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
 --- !u!50 &-8878242631809728167
 Rigidbody2D:
   serializedVersion: 4

@@ -157,7 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gridManager: {fileID: 1749455302}
   moveSpeed: 1
-  traceDuration: 5
+  traceDuration: 8
   lookAheadCells: 3
   hasWeapon: 0
   seenTrace: 0
@@ -621,7 +621,7 @@ GameObject:
   m_Layer: 0
   m_Name: GridManager
   m_TagString: Untagged
-  m_Icon: {fileID: 4422084297763085224, guid: 0000000000000000d000000000000000, type: 0}
+  m_Icon: {fileID: -5397416234189338067, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -641,13 +641,15 @@ MonoBehaviour:
   width: 15
   height: 15
   cellSize: 1
-  wallDensity: 0.4
+  wallDensity: 0.35
   exitCell: {fileID: 0}
   weaponCell: {fileID: 0}
   agentObj: {fileID: 365204636}
   enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}
   groundPrefab: {fileID: 8469061335310955438, guid: a6599673d01e5d5488fb4d35da29c512, type: 3}
   gameSpeed: 0
+  enemyCount: 3
+  randomEnemyCount: 0
 --- !u!4 &1749455303
 Transform:
   m_ObjectHideFlags: 0

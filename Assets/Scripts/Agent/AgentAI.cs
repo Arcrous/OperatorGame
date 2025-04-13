@@ -7,6 +7,8 @@ using UnityEngine.SceneManagement;
 public class AgentAI : MonoBehaviour
 {
     public GridManager gridManager;
+    private Pathfinding pathfinding;
+
     public float moveSpeed = 1f; // Speed of movement between cells
     public float traceDuration = 5f; // Duration for traces to persist
     public int lookAheadCells = 3; // Number of cells to look ahead
@@ -27,20 +29,18 @@ public class AgentAI : MonoBehaviour
 
     [SerializeField] Sprite hasWeaponSprite;
 
+    #region Setup
     private void Awake()
     {
         gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
+
+        pathfinding = new Pathfinding(gridManager);
     }
 
     private void Start()
     {
         //Delay agent pathfinding a bit.
         Invoke("InitializePathfinding", 1.5f);
-    }
-
-    private void Update()
-    {
-
     }
 
     void InitializePathfinding()
@@ -55,8 +55,8 @@ public class AgentAI : MonoBehaviour
         currentCell = startCell;
         LeaveTrace(currentCell);
 
-        List<Cell> pathToExit = FindPath(startCell, exitCell);
-        List<Cell> pathToWeapon = FindPath(startCell, weaponCell);
+        List<Cell> pathToExit = pathfinding.FindPath(startCell, exitCell);
+        List<Cell> pathToWeapon = pathfinding.FindPath(startCell, weaponCell);
 
         if (pathToWeapon != null && pathToExit != null && pathToWeapon.Count < pathToExit.Count)
         {
@@ -67,19 +67,13 @@ public class AgentAI : MonoBehaviour
             path = pathToExit;
         }
 
-        //get the path from start to exit.
-        //path = FindPath(startCell, exitCell);
-
         //move along the path
         if (path != null && path.Count > 0)
         {
             StartCoroutine(FollowPath());
         }
-        else
-        {
-            //Debug.LogError("Agent AI: No path found to the exit!");
-        }
     }
+    #endregion
 
     IEnumerator FollowPath()
     {
@@ -91,7 +85,7 @@ public class AgentAI : MonoBehaviour
                 {
                     Cell currentCell = path[i]; //keep track of current cell to recalc from there
 
-                    if (ShouldRecalculatePath(currentCell, i)) //recalc from current pose if picked up on EnemyTrace
+                    if (ShouldRecalculatePath(currentCell, i)) //recalculate from current pose if picked up on EnemyTrace
                     {
                         path.Clear();
                         if (!returnedToSpawn)
@@ -122,7 +116,7 @@ public class AgentAI : MonoBehaviour
             hasWeapon = true;
             SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
             spriteRend.sprite = hasWeaponSprite;
-            //Debug.Log("Agent AI: Picked up weapon, going to exit");
+
             path.Clear();
             StartCoroutine(RipAndTear());
             yield break;
@@ -132,7 +126,7 @@ public class AgentAI : MonoBehaviour
         {
             returnedToSpawn = true;
             moveSpeed = 1f;
-            StartCoroutine(SearchUntilFound());
+            StartCoroutine(SearchUntilFoundFromSpawn());
         }
 
         if (currentCell == exitCell)
@@ -142,28 +136,31 @@ public class AgentAI : MonoBehaviour
         }
     }
 
-    //loop until a path is found
-    IEnumerator SearchUntilFound()
+    //Once back at spawn, search for a new path to exit or weapon
+    IEnumerator SearchUntilFoundFromSpawn()
     {
         returnedToSpawn = false;
         yield return new WaitForSeconds(1f);
-        List<Cell> pathToExit = FindPath(startCell, exitCell);
-        List<Cell> pathToWeapon = FindPath(startCell, weaponCell);
+        List<Cell> pathToExit = pathfinding.FindPath(startCell, exitCell);
+        List<Cell> pathToWeapon = pathfinding.FindPath(startCell, weaponCell);
 
-        if (pathToWeapon != null && pathToExit != null && pathToWeapon.Count < pathToExit.Count)
+        if (pathToWeapon != null && pathToExit != null)
         {
-            path = pathToWeapon;
+            if (pathToWeapon.Count < pathToExit.Count)
+            {
+                path = pathToWeapon;
+            }
+            else
+            {
+                path = pathToExit;
+            }
+
         }
-        else
-        {
-            path = pathToExit;
-        }
-        //Debug.Log("finding path");
 
         if (path == null || path.Count == 0)
         {
             //Debug.LogError("Agent AI: Unable to find a new path!");
-            StartCoroutine(SearchUntilFound());
+            StartCoroutine(SearchUntilFoundFromSpawn());
         }
         else
         {
@@ -173,28 +170,49 @@ public class AgentAI : MonoBehaviour
         }
     }
 
-    //calc path from current cell to start/weapon, then compare it
-
-    //calc path to current cell to start
-    IEnumerator ReturnToSpawn()
+    //calculate path from current cell to start/weapon, then compare it
+    private List<Cell> SetShortestPathToStartOrWeapon()
     {
-        yield return new WaitForSeconds(0.3f);
-        path = FindPath(currentCell, startCell);
-        //Debug.Log("Running to start");
-        moveSpeed = 2f;
-        StartCoroutine(FollowPath());
+        List<Cell> pathToStart = pathfinding.FindPath(currentCell, startCell);
+        List<Cell> pathToWeapon = pathfinding.FindPath(currentCell, weaponCell);
+
+        if (pathToWeapon != null && pathToStart != null)
+        {
+            if (pathToWeapon.Count < pathToStart.Count)
+            {
+                path = pathToWeapon;
+                Debug.Log("Agent AI: Path to weapon chosen.");
+            }
+            else
+            {
+                path = pathToStart;
+                Debug.Log("Agent AI: Path to start chosen.");
+            }
+            return pathToWeapon.Count < pathToStart.Count ? pathToWeapon : pathToStart;
+        }
+        else if (pathToWeapon != null)
+        {
+            return pathToWeapon;
+        }
+        else if (pathToStart != null)
+        {
+            return pathToStart;
+        }
+
+        return null; // No valid path found
     }
 
-    //calc path to exit from current cell
+    //When a weapon is picked up, calculate path to exit from current cell
     IEnumerator RipAndTear()
     {
         yield return new WaitForSeconds(0.3f);
-        path = FindPath(currentCell, exitCell);
+        path = pathfinding.FindPath(currentCell, exitCell);
         //Debug.Log("Until it is done");
         moveSpeed = 1.5f;
         StartCoroutine(FollowPath());
     }
 
+    #region Movement and traces logic
     //movement logic.
     IEnumerator MoveToCell(Cell targetCell)
     {
@@ -243,6 +261,9 @@ public class AgentAI : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region Fleeing logic
     //Check if the cells ahead for EnemyTrace
     bool ShouldRecalculatePath(Cell currentCell, int currentIndex)
     {
@@ -263,7 +284,7 @@ public class AgentAI : MonoBehaviour
 
     bool HasAdjacentEnemyTrace(Cell cell)
     {
-        foreach (Cell neighbor in GetNeighbors(cell))
+        foreach (Cell neighbor in pathfinding.GetNeighbors(cell))
         {
             if (neighbor.cellEvent == "EnemyTrace")
             {
@@ -274,6 +295,17 @@ public class AgentAI : MonoBehaviour
         return false;
     }
 
+    //Set a path to spawn and return there
+    IEnumerator ReturnToSpawn()
+    {
+        yield return new WaitForSeconds(0.3f);
+        path = SetShortestPathToStartOrWeapon();
+        moveSpeed = 2f;
+        StartCoroutine(FollowPath());
+    }
+    #endregion
+
+    #region Interaction with enemies
     //Kills the Agent when touching the enemy (will expand/change in the future)
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -305,112 +337,14 @@ public class AgentAI : MonoBehaviour
             }
         }
     }
+    #endregion
 
+    #region Misc
     void ReloadScene()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    /////////////
-    /// A* pathfinding logic (made by chatgpt - to be honest, i only get the theory behind it but not the intricacy of the code itself) <summary>
-    /////////////
-    public List<Cell> FindPath(Cell start, Cell target)
-    {
-
-        List<Cell> openSet = new List<Cell> { start };
-        HashSet<Cell> closedSet = new HashSet<Cell>();
-
-        Dictionary<Cell, int> gCost = new Dictionary<Cell, int>();
-        Dictionary<Cell, int> hCost = new Dictionary<Cell, int>();
-        Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
-
-        gCost[start] = 0;
-        hCost[start] = CalculateHeuristic(start, target);
-
-        while (openSet.Count > 0)
-        {
-            // Find cell with lowest F cost
-            Cell current = openSet[0];
-            foreach (Cell cell in openSet)
-            {
-                int currentFCost = gCost[current] + hCost[current];
-                int cellFCost = gCost[cell] + hCost[cell];
-                if (cellFCost < currentFCost || (cellFCost == currentFCost && hCost[cell] < hCost[current]))
-                {
-                    current = cell;
-                }
-            }
-
-            if (current == target)
-            {
-                return RetracePath(cameFrom, start, target);
-            }
-
-            openSet.Remove(current);
-            closedSet.Add(current);
-
-            foreach (Cell neighbor in GetNeighbors(current))
-            {
-                if (seenTrace)
-                {
-                    if (neighbor.isWall || closedSet.Contains(neighbor) || neighbor.cellEvent == "EnemyTrace")
-                        continue;
-                }
-                else
-                {
-                    if (neighbor.isWall || closedSet.Contains(neighbor))
-                        continue;
-                }
-
-                int tentativeGCost = gCost[current] + 1;
-
-                if (!gCost.ContainsKey(neighbor) || tentativeGCost < gCost[neighbor])
-                {
-                    gCost[neighbor] = tentativeGCost;
-                    hCost[neighbor] = CalculateHeuristic(neighbor, target);
-                    cameFrom[neighbor] = current;
-
-                    if (!openSet.Contains(neighbor))
-                        openSet.Add(neighbor);
-                }
-            }
-        }
-
-        return null; // No path found
-    }
-
-    List<Cell> GetNeighbors(Cell cell)
-    {
-        List<Cell> neighbors = new List<Cell>();
-
-        // Check adjacent cells in the grid
-        if (cell.x > 0) neighbors.Add(gridManager.grid[cell.x - 1, cell.y]);
-        if (cell.x < gridManager.width - 1) neighbors.Add(gridManager.grid[cell.x + 1, cell.y]);
-        if (cell.y > 0) neighbors.Add(gridManager.grid[cell.x, cell.y - 1]);
-        if (cell.y < gridManager.height - 1) neighbors.Add(gridManager.grid[cell.x, cell.y + 1]);
-
-        return neighbors;
-    }
-
-    List<Cell> RetracePath(Dictionary<Cell, Cell> cameFrom, Cell start, Cell end)
-    {
-        List<Cell> path = new List<Cell>();
-        Cell current = end;
-
-        while (current != start)
-        {
-            path.Add(current);
-            current = cameFrom[current];
-        }
-
-        path.Reverse();
-        return path;
-    }
-
-    int CalculateHeuristic(Cell a, Cell b)
-    {
-        return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
-    }
 
     //Visualisation gizmos
     private void OnDrawGizmos()
@@ -443,4 +377,6 @@ public class AgentAI : MonoBehaviour
             }
         }
     }
+    #endregion
+
 }
