@@ -6,19 +6,15 @@ public class EnemyAI : MonoBehaviour
 {
     public GridManager gridManager;
     public float moveSpeed = 1f;
-    public int patrolRange = 5; // Limits how far the enemy can move from its starting position
+    public int patrolRange; // Limits how far the enemy can move from its starting position
     public float traceDuration = 5f;
 
     private Cell currentCell; // Tracks the enemy's current cell
-    [SerializeField]  private Cell startCell; // Tracks the enemy's starting cell
     private List<Cell> path; // Current path for patrol
     private bool isMoving;
     private bool isDead = false;
     public bool seenTrace = false;
     [SerializeField] private bool isChasing = false;
-    [SerializeField] bool foundReturn;
-    [SerializeField] bool returned;
-
     private Pathfinding pathfinding;
 
     private void Awake()
@@ -30,6 +26,7 @@ public class EnemyAI : MonoBehaviour
 
     private void Start()
     {
+        patrolRange = Random.Range(3, 9);
         InitializePatrol();
         StartCoroutine(CheckForAgentTrace());
     }
@@ -56,11 +53,9 @@ public class EnemyAI : MonoBehaviour
         {
             //update location to accomadate for relocating after spawn, so trace works properly.
             transform.position = currentCell.transform.position;
-            
-            startCell = currentCell; //input a value
-            
+
             LeaveTrace(currentCell, "EnemyTrace");
-            
+
             //gen the path and follow it.
             GenerateNewPatrolPath();
             StartCoroutine(FollowPath());
@@ -148,18 +143,25 @@ public class EnemyAI : MonoBehaviour
     IEnumerator ChaseAgent()
     {
         Debug.Log("Chasing Agent");
+        Cell previousTarget = null;
+
         while (isChasing && !isDead)
         {
             Cell targetCell = FindNearestAgentTrace();
-            if (targetCell != null)
+
+            if (path == null || path.Count == 0) yield break;
+
+            if (targetCell != null && targetCell != previousTarget)
             {
                 path = pathfinding.FindPath(currentCell, targetCell);
-                if (path != null && path.Count > 0)
+                previousTarget = targetCell;
+            }
+
+            if (path != null && path.Count > 0)
+            {
+                foreach (Cell cell in path)
                 {
-                    foreach (Cell cell in path)
-                    {
-                        yield return MoveToCell(cell); // Ensure step-by-step movement
-                    }
+                    yield return MoveToCell(cell);
                 }
             }
             yield return new WaitForSeconds(0.2f); // Prevent infinite loops
@@ -169,70 +171,30 @@ public class EnemyAI : MonoBehaviour
     Cell FindNearestAgentTrace()
     {
         //Debug.Log("Finding nearest Agent trace");
-        Cell closestTrace = null;
-        int minDistance = 1; // Limit to patrol range
+        Cell nearestCell = null;
+        int minDistance = int.MaxValue;
 
-        foreach (Cell cell in gridManager.grid)
+        foreach (Cell cell in pathfinding.GetNeighbors(currentCell)) // Only check neighbors
         {
-            int distanceFromStart = pathfinding.CalculateHeuristic(startCell, cell);
-            if (cell.cellEvent == "AgentTrace" && distanceFromStart <= patrolRange)
+            if (cell.cellEvent == "AgentTrace")
             {
                 int distance = pathfinding.CalculateHeuristic(currentCell, cell);
-                if (distance <= minDistance)
+                if (distance < minDistance)
                 {
                     minDistance = distance;
-                    closestTrace = cell;
+                    nearestCell = cell;
                 }
             }
         }
-
-        return closestTrace;
+        return nearestCell;
     }
 
     IEnumerator ReturnToPatrol()
     {
         yield return new WaitForSeconds(2f); // Delay before returning to patrol
         Debug.Log("Returning to patrol");
-        GoBackToSpawn();
-        isChasing = false;
-    }
-
-    void GoBackToSpawn()
-    {
-        //get a random cell with range to set as target
-        Cell targetCell = startCell;
-        if (targetCell != null)
-        {
-            path = pathfinding.FindPath(currentCell, targetCell);
-            if (path != null && path.Count > 0)
-            {
-                foundReturn = true;
-            }
-        }
-
-        if(foundReturn)
-        {
-           StartCoroutine(ReturnToSpawn());
-        }            
-    }
-
-    IEnumerator ReturnToSpawn()
-    {
-        if (path == null || path.Count == 0)
-        {
-            Debug.LogWarning("No return path. Reinitializing patrol.");
-            GenerateNewPatrolPath();
-            StartCoroutine(FollowPath());
-            yield break;
-        }
-
-        foreach (Cell cell in path)
-        {
-            yield return MoveToCell(cell);
-        }
-
-        returned = true;
         StartCoroutine(FollowPath());
+        isChasing = false;
     }
 
     IEnumerator MoveToCell(Cell targetCell)

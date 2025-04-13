@@ -160,7 +160,7 @@ public class AgentAI : MonoBehaviour
         }
         //Debug.Log("finding path");
 
-        if(path == null || path.Count == 0)
+        if (path == null || path.Count == 0)
         {
             //Debug.LogError("Agent AI: Unable to find a new path!");
             StartCoroutine(SearchUntilFound());
@@ -316,7 +316,7 @@ public class AgentAI : MonoBehaviour
     /////////////
     public List<Cell> FindPath(Cell start, Cell target)
     {
-        
+
         List<Cell> openSet = new List<Cell> { start };
         HashSet<Cell> closedSet = new HashSet<Cell>();
 
@@ -417,16 +417,6 @@ public class AgentAI : MonoBehaviour
     {
         if (!isDead)
         {
-            /*if (path != null)
-            {
-                Gizmos.color = Color.green;
-
-                foreach (Cell cell in path)
-                {
-                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
-                }
-            }*/
-
             if (gridManager.grid != null && gridManager.grid != null)
             {
                 foreach (Cell cell in gridManager.grid)
@@ -437,6 +427,19 @@ public class AgentAI : MonoBehaviour
                         Gizmos.DrawSphere(cell.transform.position, 0.16f);
                     }
                 }
+            }
+        }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (path != null)
+        {
+            Gizmos.color = Color.green;
+
+            foreach (Cell cell in path)
+            {
+                Gizmos.DrawSphere(cell.transform.position, 0.15f);
             }
         }
     }

@@ -60,7 +60,9 @@ public class GridManager : MonoBehaviour
                 Debug.Log("Maze successfully validated and solved!");
 
                 // Spawn an enemy
-                SpawnEnemy();
+                StartCoroutine(SpawnEnemy());
+
+                yield return new WaitForSeconds(1f);
 
                 //Activate the agent gObj
                 agentObj.SetActive(true);
@@ -137,7 +139,7 @@ public class GridManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 // Skip start and exit cells + cells adjacent to it
-                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4 || grid[x,y] == weaponCell)
+                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4 || grid[x, y] == weaponCell)
                     continue;
 
                 if (Random.value < wallDensity)
@@ -159,8 +161,8 @@ public class GridManager : MonoBehaviour
     void SetRandomExit() //Place an exit
     {
         //Ensure the exit is at least 6 rows away from the exit
-        int exitX = Random.Range(6, width-1);
-        int exitY = Random.Range(6, height-1);
+        int exitX = Random.Range(6, width - 1);
+        int exitY = Random.Range(6, height - 1);
 
         exitCell = grid[exitX, exitY];
 
@@ -198,12 +200,13 @@ public class GridManager : MonoBehaviour
         weaponCell.SetAsWeapon();
     }
 
-    void SpawnEnemy() //Spawn enemies
+    IEnumerator SpawnEnemy() //Spawn enemies
     {
         int amountToSpawn = Random.Range(2, 5);
         for (int x = 0; x < amountToSpawn; x++)
         {
             Debug.Log("Spawning enemy");
+            yield return new WaitForSeconds(1f);
             GameObject enemy = Instantiate(enemyPrefab);
         }
         //enemy.transform.SetParent(transform);
