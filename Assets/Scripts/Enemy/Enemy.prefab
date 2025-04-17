@@ -101,9 +101,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gridManager: {fileID: 0}
   moveSpeed: 1
-  patrolRange: 6
+  patrolRange: 3
   traceDuration: 7
-  isFollowingPath: 0
   seenTrace: 0
   isChasing: 0
   sprites:
