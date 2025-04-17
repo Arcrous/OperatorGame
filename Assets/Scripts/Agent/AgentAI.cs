@@ -171,36 +171,7 @@ public class AgentAI : MonoBehaviour
     }
 
     //calculate path from current cell to start/weapon, then compare it
-    private List<Cell> SetShortestPathToStartOrWeapon()
-    {
-        List<Cell> pathToStart = pathfinding.FindPath(currentCell, startCell);
-        List<Cell> pathToWeapon = pathfinding.FindPath(currentCell, weaponCell);
-
-        if (pathToWeapon != null && pathToStart != null)
-        {
-            if (pathToWeapon.Count < pathToStart.Count)
-            {
-                path = pathToWeapon;
-                Debug.Log("Agent AI: Path to weapon chosen.");
-            }
-            else
-            {
-                path = pathToStart;
-                Debug.Log("Agent AI: Path to start chosen.");
-            }
-            return pathToWeapon.Count < pathToStart.Count ? pathToWeapon : pathToStart;
-        }
-        else if (pathToWeapon != null)
-        {
-            return pathToWeapon;
-        }
-        else if (pathToStart != null)
-        {
-            return pathToStart;
-        }
-
-        return null; // No valid path found
-    }
+    
 
     //When a weapon is picked up, calculate path to exit from current cell
     IEnumerator RipAndTear()
@@ -299,7 +270,7 @@ public class AgentAI : MonoBehaviour
     IEnumerator ReturnToSpawn()
     {
         yield return new WaitForSeconds(0.3f);
-        path = SetShortestPathToStartOrWeapon();
+        path = pathfinding.FindPath(currentCell, startCell);
         moveSpeed = 2f;
         StartCoroutine(FollowPath());
     }

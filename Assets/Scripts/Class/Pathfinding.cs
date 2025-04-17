@@ -6,14 +6,11 @@ public class Pathfinding
 {
     public GridManager gridManager;
 
-    private void Awake()
-    {
-        gridManager = GameObject.Find("GridManager").GetComponent<GridManager>();
-    }
-
     public Pathfinding(GridManager gridManager)
     {
         this.gridManager = gridManager;
+        
+        Debug.Log("Pathfinding initialized");
     }
 
     /////////////
