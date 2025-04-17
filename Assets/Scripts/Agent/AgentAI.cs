@@ -238,7 +238,7 @@ public class AgentAI : MonoBehaviour
         //Debug.Log("Until it is done");
         moveSpeed = 1.5f;
         StartCoroutine(FollowPath());
-    } 
+    }
     #endregion
 
     #region Movement and traces logic
@@ -272,24 +272,11 @@ public class AgentAI : MonoBehaviour
     void LeaveTrace(Cell cell)
     {
         //set cell event as trace for Enemy to pick up
-        if (cell != null)
+        if (cell != null || cell.cellEvent == "AgentTrace")
         {
-            //Debug.Log("Leaving trace - Agent");
-            cell.cellEvent = "AgentTrace";
-            StartCoroutine(ClearTraceAfterDelay(cell));
+            TraceManager.Instance.LeaveTrace(cell, "AgentTrace", traceDuration);
         }
     }
-
-    //Clear the trace after a delay
-    IEnumerator ClearTraceAfterDelay(Cell cell)
-    {
-        yield return new WaitForSeconds(traceDuration);
-        if (cell != null && cell.cellEvent == "AgentTrace")
-        {
-            cell.cellEvent = "None";
-        }
-    }
-
     #endregion
 
     #region Fleeing logic
@@ -410,25 +397,27 @@ public class AgentAI : MonoBehaviour
     #region Pathfinding
     public List<Cell> FindPath(Cell start, Cell target)
     {
-        List<Cell> openSet = new List<Cell> { start };
+        // Use our custom priority queue
+        PriorityQueue<Cell> openSet = new PriorityQueue<Cell>(cell => cell.gCost + cell.hCost);
+        openSet.Enqueue(start);
+
         HashSet<Cell> closedSet = new HashSet<Cell>();
         Dictionary<Cell, int> gCost = new Dictionary<Cell, int>();
-        Dictionary<Cell, int> hCost = new Dictionary<Cell, int>();
         Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
 
         gCost[start] = 0;
-        hCost[start] = CalculateHeuristic(start, target);
+        start.gCost = 0;
+        start.hCost = CalculateHeuristic(start, target);
 
         while (openSet.Count > 0)
         {
-            Cell current = GetLowestFCostCell(openSet, gCost, hCost);
+            Cell current = openSet.Dequeue();
 
             if (current == target)
             {
                 return RetracePath(cameFrom, start, target);
             }
 
-            openSet.Remove(current);
             closedSet.Add(current);
 
             foreach (Cell neighbor in GetNeighbors(current))
@@ -449,11 +438,12 @@ public class AgentAI : MonoBehaviour
                 if (!gCost.ContainsKey(neighbor) || tentativeGCost < gCost[neighbor])
                 {
                     gCost[neighbor] = tentativeGCost;
-                    hCost[neighbor] = CalculateHeuristic(neighbor, target);
+                    neighbor.gCost = tentativeGCost;
+                    neighbor.hCost = CalculateHeuristic(neighbor, target);
                     cameFrom[neighbor] = current;
 
                     if (!openSet.Contains(neighbor))
-                        openSet.Add(neighbor);
+                        openSet.Enqueue(neighbor);
                 }
             }
         }
@@ -522,6 +512,6 @@ public class AgentAI : MonoBehaviour
     public int CalculateHeuristic(Cell a, Cell b)
     {
         return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
-    } 
+    }
     #endregion
 }

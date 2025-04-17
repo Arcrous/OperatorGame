@@ -40,6 +40,7 @@ public class GridManager : MonoBehaviour
     {
         gameSpeed = 1f;
         StartCoroutine(GenerateValidMazeCoroutine());
+        TraceManager manager = TraceManager.Instance; // Ensure TraceManager is initialized
     }
 
     private void Update()

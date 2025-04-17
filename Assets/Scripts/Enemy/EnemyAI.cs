@@ -251,54 +251,65 @@ public class EnemyAI : MonoBehaviour
     IEnumerator ChaseTrace()
     {
         Debug.Log("Chase initiated.");
+
+        // Speed up when chasing
+        float originalSpeed = moveSpeed;
+        moveSpeed *= 1.1f;
+
+        int failedPathfinds = 0;
+
         while (isChasing)
         {
-            // First, check if any adjacent cell contains a trace.
-            Cell adjacentTrace = FindAdjacentTrace();
-            if (adjacentTrace != null)
+            Cell traceCell = FindAdjacentTrace() ?? FindNearestTraceCell();
+
+            if (traceCell != null)
             {
-                Debug.Log("Chasing adjacent trace.");
-                yield return MoveToCell(adjacentTrace);
-            }
-            else
-            {
-                // Otherwise, search the entire grid for the nearest trace.
-                Cell targetTrace = FindNearestTraceCell();
-                if (targetTrace != null)
+                List<Cell> chasePath = pathfinding.FindPath(currentCell, traceCell);
+                if (chasePath != null && chasePath.Count > 0)
                 {
-                    List<Cell> chasePath = pathfinding.FindPath(currentCell, targetTrace);
-                    if (chasePath != null && chasePath.Count > 0)
+                    failedPathfinds = 0; // Reset failed attempts
+
+                    // Move to the first few cells only, then reevaluate
+                    int cellsToFollow = Mathf.Min(3, chasePath.Count);
+                    for (int i = 0; i < cellsToFollow; i++)
                     {
-                        foreach (Cell cell in chasePath)
-                        {
-                            yield return MoveToCell(cell);
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("No valid path to trace found.");
-                        isChasing = false;
-                        break;
+                        yield return MoveToCell(chasePath[i]);
+
+                        // Check if we've found a new, closer trace
+                        if (FindAdjacentTrace() != null) break;
                     }
                 }
                 else
                 {
-                    // If no trace is found anywhere, stop chasing and return to patrol.
-                    Debug.Log("No trace found, returning to patrol.");
-                    isChasing = false;
-                    break;
+                    failedPathfinds++;
+                    if (failedPathfinds >= 3)
+                    {
+                        Debug.Log("Too many failed pathfinds, returning to patrol");
+                        isChasing = false;
+                        break;
+                    }
+                    yield return new WaitForSeconds(0.5f);
                 }
             }
-            yield return new WaitForSeconds(0.1f); // Small delay to avoid a tight loop.
+            else
+            {
+                // If no trace is found anywhere, stop chasing and return to patrol.
+                Debug.Log("No trace found, returning to patrol.");
+                isChasing = false;
+                break;
+            }
+
+            yield return new WaitForSeconds(0.1f);
         }
+
+        // Return to original speed
+        moveSpeed = originalSpeed;
+
         // Resume patrol behavior after chasing.
-        path.Clear(); // Clear the path to avoid confusion
-        GenerateNewPatrolPath(); // Generate a new patrol path
+        path.Clear();
+        GenerateNewPatrolPath();
         StartCoroutine(FollowPath());
     }
-    //if true, stop patrol and start chasing the player by following traces. Once reaching the targeted cell containing a trace, check if there's any other trace in the vicinity, if so, follow it. If not, return to patrol.
-
-    //This function makes the enemy return to patrol
     #endregion
 
     #region Movement logic (probably don't need further editing)
@@ -335,9 +346,7 @@ public class EnemyAI : MonoBehaviour
         //set cell event as trace for Agent to pick up.
         if (cell != null)
         {
-            //Debug.Log("Leaving trace - Enemy");
-            cell.cellEvent = traceType;
-            StartCoroutine(ClearTraceAfterDelay(cell));
+            TraceManager.Instance.LeaveTrace(cell, traceType, traceDuration);
         }
     }
 

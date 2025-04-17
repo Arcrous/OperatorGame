@@ -9,7 +9,7 @@ public class Pathfinding
     public Pathfinding(GridManager gridManager)
     {
         this.gridManager = gridManager;
-        
+
         Debug.Log("Pathfinding initialized");
     }
 
@@ -18,29 +18,32 @@ public class Pathfinding
     /////////////
     public List<Cell> FindPath(Cell start, Cell target)
     {
-        List<Cell> openSet = new List<Cell> { start };
+        // Use our custom priority queue
+        PriorityQueue<Cell> openSet = new PriorityQueue<Cell>(cell => cell.gCost + cell.hCost);
+        openSet.Enqueue(start);
+
         HashSet<Cell> closedSet = new HashSet<Cell>();
         Dictionary<Cell, int> gCost = new Dictionary<Cell, int>();
-        Dictionary<Cell, int> hCost = new Dictionary<Cell, int>();
         Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
 
         gCost[start] = 0;
-        hCost[start] = CalculateHeuristic(start, target);
+        start.gCost = 0;
+        start.hCost = CalculateHeuristic(start, target);
 
         while (openSet.Count > 0)
         {
-            Cell current = GetLowestFCostCell(openSet, gCost, hCost);
+            Cell current = openSet.Dequeue();
 
             if (current == target)
             {
                 return RetracePath(cameFrom, start, target);
             }
 
-            openSet.Remove(current);
             closedSet.Add(current);
 
             foreach (Cell neighbor in GetNeighbors(current))
             {
+
                 if (neighbor.isWall || closedSet.Contains(neighbor))
                     continue;
 
@@ -49,11 +52,12 @@ public class Pathfinding
                 if (!gCost.ContainsKey(neighbor) || tentativeGCost < gCost[neighbor])
                 {
                     gCost[neighbor] = tentativeGCost;
-                    hCost[neighbor] = CalculateHeuristic(neighbor, target);
+                    neighbor.gCost = tentativeGCost;
+                    neighbor.hCost = CalculateHeuristic(neighbor, target);
                     cameFrom[neighbor] = current;
 
                     if (!openSet.Contains(neighbor))
-                        openSet.Add(neighbor);
+                        openSet.Enqueue(neighbor);
                 }
             }
         }
