@@ -66,7 +66,7 @@ public class EnemyAI : MonoBehaviour
 
         SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
         spriteRend.color = Color.red;
-        gameObject.transform.Rotate(0f, 0f, 90f, Space.Self);
+        gameObject.transform.Rotate(0f, 0f, -90f, Space.Self);
 
         Destroy(this.gameObject, 5f);
     }
