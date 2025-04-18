@@ -157,7 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gridManager: {fileID: 1749455302}
   moveSpeed: 1
-  traceDuration: 8
+  traceDuration: 5
   lookAheadCells: 3
   hasWeapon: 0
   seenTrace: 0
@@ -618,6 +618,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1749455303}
   - component: {fileID: 1749455302}
+  - component: {fileID: 1749455304}
   m_Layer: 0
   m_Name: GridManager
   m_TagString: Untagged
@@ -638,18 +639,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   destroyGrid: 0
-  width: 15
-  height: 15
+  width: 20
+  height: 20
   cellSize: 1
-  wallDensity: 0.35
+  wallDensity: 0.3
   exitCell: {fileID: 0}
-  weaponCell: {fileID: 0}
   agentObj: {fileID: 365204636}
-  enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}
   groundPrefab: {fileID: 8469061335310955438, guid: a6599673d01e5d5488fb4d35da29c512, type: 3}
   gameSpeed: 0
-  enemyCount: 3
-  randomEnemyCount: 0
+  weaponCell: {fileID: 0}
+  weaponCells: []
+  weaponCount: 1
+  randomWeaponCount: 0
 --- !u!4 &1749455303
 Transform:
   m_ObjectHideFlags: 0
@@ -665,3 +666,28 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1749455304
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1749455301}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a911e73c97a7a16429f5d87fb0191660, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enemyPrefab: {fileID: 5546574696665610508, guid: 1c931b1fd0621084293205a1b81c2486, type: 3}
+  gridManager: {fileID: 0}
+  numberOfEnemies: 3
+  spawnDelay: 0.5
+  randomEnemyAmount: 0
+  maxEnemies: 10
+  chaserChance: 0
+  ambusherChance: 0
+  patrollerChance: 1
+  chaserColor: {r: 1, g: 0, b: 0, a: 1}
+  ambusherColor: {r: 1, g: 0, b: 1, a: 1}
+  patrollerColor: {r: 0, g: 1, b: 0, a: 1}
+  wandererColor: {r: 1, g: 0.5, b: 0, a: 1}

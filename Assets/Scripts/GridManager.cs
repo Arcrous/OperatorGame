@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class GridManager : MonoBehaviour
 {
@@ -15,7 +16,6 @@ public class GridManager : MonoBehaviour
 
     public Cell[,] grid;
     public Cell exitCell;
-    public Cell weaponCell;
     Cell exitAdj1;
     Cell exitAdj2;
     Cell exitAdj3;
@@ -23,18 +23,20 @@ public class GridManager : MonoBehaviour
 
     [Header("Prefab References")]
     public GameObject agentObj;
-    public GameObject enemyPrefab;
     public GameObject groundPrefab;
 
     [Header("Game Speed")]
     [Range(0, 30)]
     public float gameSpeed;
 
-    [Header("Enemy Spawning")]
-    [Range(1, 10)]
-    [SerializeField] int enemyCount = 1; //number of enemies to spawn
-    [SerializeField] bool randomEnemyCount = false;
+    public UnityAction spawnEnemy;
 
+    [Header("Weapon Spawning")]
+    public Cell weaponCell; // Keep for backward compatibility
+    public List<Cell> weaponCells = new List<Cell>(); // New list to store multiple weapon cells
+    [Range(1, 5)]
+    [SerializeField] int weaponCount = 3; // Number of weapons to spawn
+    [SerializeField] bool randomWeaponCount = false; // Whether to use random weapon count
 
     void Start()
     {
@@ -69,10 +71,9 @@ public class GridManager : MonoBehaviour
 
                 Debug.Log("Maze successfully validated and solved!");
 
-                // Spawn an enemy
-                StartCoroutine(SpawnEnemy());
+                spawnEnemy?.Invoke(); // Invoke the event to spawn enemies
 
-                yield return new WaitForSeconds(1f);
+                yield return new WaitForSeconds(2f);
 
                 //Activate the agent gObj
                 agentObj.SetActive(true);
@@ -149,7 +150,7 @@ public class GridManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 // Skip start and exit cells + cells adjacent to it
-                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4 || grid[x, y] == weaponCell)
+                if (grid[x, y] == grid[0, 0] || grid[x, y] == exitCell || grid[x, y] == exitAdj1 || grid[x, y] == exitAdj2 || grid[x, y] == exitAdj3 || grid[x, y] == exitAdj4 || weaponCells.Contains(grid[x, y]))
                     continue;
 
                 if (Random.value < wallDensity)
@@ -187,42 +188,55 @@ public class GridManager : MonoBehaviour
 
     void SetRandomWeaponSpawn()
     {
-        int amountToSpawn = Random.Range(2, 5);
+        // Clear any previous weapon cells
+        weaponCells.Clear();
 
-        int weaponX;
-        int weaponY;
+        // Determine how many weapons to spawn
+        int numWeaponsToSpawn = randomWeaponCount ? Random.Range(1, weaponCount + 1) : weaponCount;
 
-        int weaponCount = 0;
+        // Keep track of weapon spawn attempts to avoid infinite loops
+        int spawnAttempts = 0;
+        int maxSpawnAttempts = 50;
 
-        do
+        for (int i = 0; i < numWeaponsToSpawn; i++)
         {
-            //Ensure the exit is at least 1 rows away from the exit
-            weaponX = Random.Range(1, width - 1);
-            weaponY = Random.Range(1, height - 1);
+            Cell newWeaponCell = null;
+            bool validCellFound = false;
 
-            weaponCount++;
-            //Debug.Log("Weapon count: " + weaponCount);
+            while (!validCellFound && spawnAttempts < maxSpawnAttempts)
+            {
+                spawnAttempts++;
+
+                // Ensure the weapon is at least 1 row away from start
+                int weaponX = Random.Range(1, width - 1);
+                int weaponY = Random.Range(1, height - 1);
+
+                Cell cellToCheck = grid[weaponX, weaponY];
+
+                // Check if this is a valid cell (not exit, not wall, not start, not already a weapon)
+                if (cellToCheck != exitCell &&
+                    cellToCheck != grid[0, 0] &&
+                    !cellToCheck.isWall &&
+                    !weaponCells.Contains(cellToCheck))
+                {
+                    newWeaponCell = cellToCheck;
+                    validCellFound = true;
+                }
+            }
+
+            if (validCellFound && newWeaponCell != null)
+            {
+                weaponCells.Add(newWeaponCell);
+                newWeaponCell.SetAsWeapon();
+
+                // Set the first weapon cell as the legacy weaponCell for backward compatibility
+                if (i == 0)
+                {
+                    weaponCell = newWeaponCell;
+                }
+            }
         }
-        while (weaponCount == 0 && (grid[weaponX, weaponY] == exitCell || grid[weaponX, weaponY] == grid[weaponX, weaponY].isWall)); //Ensure the weapon isn't on exitCell, wall Cell
 
-        weaponCell = grid[weaponX, weaponY];
-
-        weaponCell.SetAsWeapon();
-    }
-
-    IEnumerator SpawnEnemy() //Spawn enemies
-    {
-        if (randomEnemyCount)
-        {
-            enemyCount = Random.Range(1, 5);
-        }
-        for (int x = 0; x < enemyCount; x++)
-        {
-            //Debug.Log("Spawning enemy");
-            yield return new WaitForSeconds(.2f);
-            GameObject enemy = Instantiate(enemyPrefab);
-        }
-        //enemy.transform.SetParent(transform);
     }
 
     ///////////////////////

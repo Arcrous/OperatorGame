@@ -15,7 +15,7 @@ public class AgentAI : MonoBehaviour
     private Cell startCell;
     private Cell exitCell;
     private Cell currentCell;
-    private Cell weaponCell;
+    private Cell targetWeaponCell; // The closest weapon cell that the agent is heading to
 
     int retries = 0;
 
@@ -48,14 +48,16 @@ public class AgentAI : MonoBehaviour
 
         startCell = gridManager.grid[0, 0];
         exitCell = gridManager.exitCell;
-        weaponCell = gridManager.weaponCell;
 
         //set current cell
         currentCell = startCell;
         LeaveTrace(currentCell);
 
+        // Find the closest weapon cell
+        FindClosestWeaponCell();
+
         List<Cell> pathToExit = FindPath(startCell, exitCell);
-        List<Cell> pathToWeapon = FindPath(startCell, weaponCell);
+        List<Cell> pathToWeapon = targetWeaponCell != null ? FindPath(startCell, targetWeaponCell) : null;
 
         if (pathToWeapon != null && pathToExit != null && pathToWeapon.Count < pathToExit.Count)
         {
@@ -123,7 +125,7 @@ public class AgentAI : MonoBehaviour
             }
         }
 
-        if (currentCell == weaponCell)
+        if (gridManager.weaponCells.Contains(currentCell))
         {
             hasWeapon = true;
             SpriteRenderer spriteRend = this.gameObject.GetComponent<SpriteRenderer>();
@@ -151,13 +153,43 @@ public class AgentAI : MonoBehaviour
         }
     }
 
+    // Find the closest weapon cell based on path length
+    void FindClosestWeaponCell()
+    {
+        if (gridManager.weaponCells.Count == 0)
+        {
+            targetWeaponCell = null;
+            return;
+        }
+
+        int shortestPathLength = int.MaxValue;
+        Cell closestWeaponCell = null;
+
+        foreach (Cell weaponCell in gridManager.weaponCells)
+        {
+            List<Cell> path = FindPath(currentCell, weaponCell);
+            if (path != null && path.Count < shortestPathLength)
+            {
+                shortestPathLength = path.Count;
+                closestWeaponCell = weaponCell;
+            }
+        }
+
+        targetWeaponCell = closestWeaponCell;
+        //Debug.Log($"Closest weapon cell is at ({targetWeaponCell?.x}, {targetWeaponCell?.y}) with path length: {shortestPathLength}");
+    }
+
     //Once back at spawn, search for a new path to exit or weapon
     IEnumerator SearchUntilFoundFromSpawn()
     {
         returnedToSpawn = false;
         yield return new WaitForSeconds(1f);
+
+        // Find closest weapon cell again
+        FindClosestWeaponCell();
+
         List<Cell> pathToExit = FindPath(startCell, exitCell);
-        List<Cell> pathToWeapon = FindPath(startCell, weaponCell);
+        List<Cell> pathToWeapon = targetWeaponCell != null ? FindPath(startCell, targetWeaponCell) : null;
 
         if (pathToWeapon != null && pathToExit != null)
         {
@@ -169,13 +201,21 @@ public class AgentAI : MonoBehaviour
             {
                 path = pathToExit;
             }
-
+        }
+        else if (pathToExit != null)
+        {
+            path = pathToExit;
+            //Debug.Log("From spawn: Taking path to exit (no weapon path)");
+        }
+        else if (pathToWeapon != null)
+        {
+            path = pathToWeapon;
+            //Debug.Log("From spawn: Taking path to weapon (no exit path)");
         }
 
         if (path == null || path.Count == 0)
         {
             retries++;
-            Debug.Log("retrying... " + retries);
             if (retries >= 10)
             {
                 Debug.LogError("Agent AI: Unable to find a new path after 10 retries!");
@@ -183,7 +223,7 @@ public class AgentAI : MonoBehaviour
                 yield break;
             }
 
-            Debug.LogError("Agent AI: Unable to find a new path!");
+            //Debug.LogError("Agent AI: Unable to find a new path!");
             StartCoroutine(SearchUntilFoundFromSpawn());
         }
         else
@@ -199,34 +239,37 @@ public class AgentAI : MonoBehaviour
     private List<Cell> ComparePathsFromCurrentCell()
     {
         List<Cell> pathToStart = FindPath(currentCell, startCell);
-        List<Cell> pathToWeapon = FindPath(currentCell, weaponCell);
+
+        // Find the closest weapon cell again since our position changed
+        FindClosestWeaponCell();
+        List<Cell> pathToWeapon = targetWeaponCell != null ? FindPath(currentCell, targetWeaponCell) : null;
 
         // Choose the shorter path
         if (pathToWeapon != null && pathToStart != null)
         {
             if (pathToWeapon.Count < pathToStart.Count)
             {
-                Debug.Log("Agent: Weapon path is shorter, heading there");
+                //Debug.Log("Agent: Weapon path is shorter, heading there");
                 return pathToWeapon;
             }
             else
             {
-                Debug.Log("Agent: Start path is shorter, heading there");
+                //Debug.Log("Agent: Start path is shorter, heading there");
                 return pathToStart;
             }
         }
         else if (pathToStart != null)
         {
-            Debug.Log("Agent: No path to weapon, heading to start");
+            //Debug.Log("Agent: No path to weapon, heading to start");
             return pathToStart;
         }
         else if (pathToWeapon != null)
         {
-            Debug.Log("Agent: No path to start, heading to weapon");
+            //Debug.Log("Agent: No path to start, heading to weapon");
             return pathToWeapon;
         }
 
-        Debug.LogError("Agent: Couldn't find path to either start or weapon!");
+        //Debug.LogError("Agent: Couldn't find path to either start or weapon!");
         return null;
     }
 
@@ -376,6 +419,13 @@ public class AgentAI : MonoBehaviour
                         Gizmos.DrawSphere(cell.transform.position, 0.16f);
                     }
                 }
+            }
+
+            // Highlight the target weapon cell
+            if (targetWeaponCell != null)
+            {
+                Gizmos.color = Color.magenta;
+                Gizmos.DrawWireSphere(targetWeaponCell.transform.position, 0.3f);
             }
         }
     }

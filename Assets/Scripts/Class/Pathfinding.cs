@@ -9,8 +9,6 @@ public class Pathfinding
     public Pathfinding(GridManager gridManager)
     {
         this.gridManager = gridManager;
-
-        Debug.Log("Pathfinding initialized");
     }
 
     /////////////
