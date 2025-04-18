@@ -650,7 +650,7 @@ MonoBehaviour:
   weaponCell: {fileID: 0}
   weaponCells: []
   weaponCount: 1
-  randomWeaponCount: 0
+  randomWeaponCount: 1
 --- !u!4 &1749455303
 Transform:
   m_ObjectHideFlags: 0
@@ -682,11 +682,11 @@ MonoBehaviour:
   gridManager: {fileID: 0}
   numberOfEnemies: 3
   spawnDelay: 0.5
-  randomEnemyAmount: 0
-  maxEnemies: 10
-  chaserChance: 0
-  ambusherChance: 0
-  patrollerChance: 1
+  randomEnemyAmount: 1
+  maxEnemies: 7
+  chaserChance: 0.25
+  ambusherChance: 0.25
+  patrollerChance: 0.25
   chaserColor: {r: 1, g: 0, b: 0, a: 1}
   ambusherColor: {r: 1, g: 0, b: 1, a: 1}
   patrollerColor: {r: 0, g: 1, b: 0, a: 1}

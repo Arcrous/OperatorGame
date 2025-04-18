@@ -190,7 +190,7 @@ MonoBehaviour:
   typeDiamond: {fileID: 2763775642526099905}
   patrolRange: 3
   traceDuration: 7
-  ambushLookAhead: 4
+  ambushLookAhead: 7
   patrollerPatternSize: 8
   wandererChaseChance: 0.5
   wandererFleeDistance: 5
@@ -201,11 +201,33 @@ MonoBehaviour:
   - {fileID: -1603082062, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: 1693848273, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: 1913320928, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
-  - {fileID: -1972094267, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1946562735, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: 405604967, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: -1782914244, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: 1759064542, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: 779846576, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1156448429, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -252729910, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1841707844, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1292132433, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1352940176, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -930080157, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1300031713, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1798263185, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1679839377, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1793821939, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -972084682, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 45712823, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1710989235, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1073134259, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 779846576, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -1526838300, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -729272765, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -572138477, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -199337042, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: 1921224144, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -388149249, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  - {fileID: -557192544, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
 --- !u!50 &-8878242631809728167
 Rigidbody2D:
   serializedVersion: 4

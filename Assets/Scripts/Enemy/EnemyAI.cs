@@ -341,19 +341,29 @@ public class EnemyAI : MonoBehaviour
 
                 if (patternCells != null && patternCells.Count > 0)
                 {
-                    // Follow the pattern, but only for a limited number of steps before reassessing
-                    int stepsToFollow = Mathf.Min(3, patternCells.Count);
-                    for (int i = 0; i < stepsToFollow; i++)
+                    // Instead of following the pattern directly, move one step at a time
+                    // toward each pattern cell in sequence
+                    for (int i = 0; i < Mathf.Min(3, patternCells.Count); i++)
                     {
-                        if (i < patternCells.Count)
+                        Cell targetCell = patternCells[i];
+                        // Find path to this cell
+                        List<Cell> pathToTarget = pathfinding.FindPath(currentCell, targetCell);
+
+                        if (pathToTarget != null && pathToTarget.Count > 0)
                         {
-                            yield return MoveToCell(patternCells[i]);
+                            // Move only one step along the path
+                            yield return MoveToCell(pathToTarget[0]);
 
                             // Check if we've moved to a trace
-                            if (patternCells[i].cellEvent == "AgentTrace")
+                            if (currentCell.cellEvent == "AgentTrace")
                             {
                                 break; // Found a trace, recalculate pattern
                             }
+                        }
+                        else
+                        {
+                            // If we can't find a path, try the next cell
+                            continue;
                         }
                     }
                 }
@@ -450,7 +460,9 @@ public class EnemyAI : MonoBehaviour
         }
         ResumePatrol();
     }
+    #endregion
 
+    #region Behavior Helper Methods
     // Helper for the chaser behavior to just take one step
     IEnumerator ChaserBehaviorOneStep()
     {
@@ -541,9 +553,7 @@ public class EnemyAI : MonoBehaviour
         }
         return nearest;
     }
-    #endregion
 
-    #region Behavior Helper Methods
     // Update our understanding of trace direction based on seeing new traces
     void UpdateTraceDirection(Cell traceCell)
     {
@@ -630,74 +640,67 @@ public class EnemyAI : MonoBehaviour
     // Create a pattern around a trace that stays within movement constraints
     List<Cell> CreateConstrainedPatternAroundTrace(Cell centerCell)
     {
-        List<Cell> patternCells = new List<Cell>();
+        // Find cells that are reachable from our current position
+        List<Cell> reachableCells = FindReachableCellsWithinSteps(currentCell, patrolRange);
 
-        // Define a smaller area to patrol around the trace
-        int maxPatternDistance = Mathf.Min(patrollerPatternSize, patrolRange);
+        // Filter to cells that are near the trace
+        List<Cell> patternCells = reachableCells.FindAll(cell =>
+            Mathf.Abs(cell.x - centerCell.x) + Mathf.Abs(cell.y - centerCell.y) <= patrollerPatternSize);
 
-        // Start position is where the enemy first spotted the trace
-        Cell startCell = currentCell;
-
-        // Create a constrained pattern
-        for (int dy = -maxPatternDistance; dy <= maxPatternDistance; dy++)
+        // Sort by distance to trace
+        patternCells.Sort((a, b) =>
         {
-            for (int dx = -maxPatternDistance; dx <= maxPatternDistance; dx++)
+            int distA = Mathf.Abs(a.x - centerCell.x) + Mathf.Abs(a.y - centerCell.y);
+            int distB = Mathf.Abs(b.x - centerCell.x) + Mathf.Abs(b.y - centerCell.y);
+            return distA.CompareTo(distB);
+        });
+
+        return patternCells;
+    }
+
+    // Instead of checking a square area, use BFS to find all cells within N steps
+    List<Cell> FindReachableCellsWithinSteps(Cell start, int maxSteps)
+    {
+        List<Cell> reachableCells = new List<Cell>();
+        HashSet<Cell> visited = new HashSet<Cell>();
+        Queue<(Cell cell, int steps)> queue = new Queue<(Cell, int)>();
+
+        queue.Enqueue((start, 0));
+        visited.Add(start);
+
+        int[] dx = { 0, 1, 0, -1 };
+        int[] dy = { 1, 0, -1, 0 };
+
+        while (queue.Count > 0)
+        {
+            var (current, steps) = queue.Dequeue();
+
+            if (steps <= maxSteps)
             {
-                // Skip cells that are too far from the center
-                if (Mathf.Abs(dx) + Mathf.Abs(dy) > maxPatternDistance) continue;
+                reachableCells.Add(current);
 
-                // Calculate position
-                int nx = centerCell.x + dx;
-                int ny = centerCell.y + dy;
-
-                // Ensure position is within grid bounds
-                if (nx >= 0 && nx < gridManager.width && ny >= 0 && ny < gridManager.height)
+                if (steps < maxSteps)
                 {
-                    Cell candidate = gridManager.grid[nx, ny];
-
-                    // Check if it's walkable
-                    if (!candidate.isWall)
+                    for (int i = 0; i < 4; i++)
                     {
-                        // Check if it's within range of our patrol area
-                        int distanceFromStart = Mathf.Abs(candidate.x - startCell.x) + Mathf.Abs(candidate.y - startCell.y);
-                        if (distanceFromStart <= patrolRange)
+                        int nx = current.x + dx[i];
+                        int ny = current.y + dy[i];
+
+                        if (nx >= 0 && nx < gridManager.width && ny >= 0 && ny < gridManager.height)
                         {
-                            patternCells.Add(candidate);
+                            Cell next = gridManager.grid[nx, ny];
+                            if (!next.isWall && !visited.Contains(next))
+                            {
+                                queue.Enqueue((next, steps + 1));
+                                visited.Add(next);
+                            }
                         }
                     }
                 }
             }
         }
 
-        // If we found valid cells, sort them by proximity to the trace
-        if (patternCells.Count > 0)
-        {
-            // Sort by distance to trace (closest first)
-            patternCells.Sort((a, b) =>
-            {
-                int distA = Mathf.Abs(a.x - centerCell.x) + Mathf.Abs(a.y - centerCell.y);
-                int distB = Mathf.Abs(b.x - centerCell.x) + Mathf.Abs(b.y - centerCell.y);
-                return distA.CompareTo(distB);
-            });
-
-            // Add some randomness by shuffling cells at similar distances
-            for (int i = 0; i < patternCells.Count - 1; i++)
-            {
-                Cell a = patternCells[i];
-                Cell b = patternCells[i + 1];
-
-                int distA = Mathf.Abs(a.x - centerCell.x) + Mathf.Abs(a.y - centerCell.y);
-                int distB = Mathf.Abs(b.x - centerCell.x) + Mathf.Abs(b.y - centerCell.y);
-
-                if (distA == distB && Random.value > 0.5f)
-                {
-                    patternCells[i] = b;
-                    patternCells[i + 1] = a;
-                }
-            }
-        }
-
-        return patternCells;
+        return reachableCells;
     }
 
     // For the Wanderer: find a cell to flee to
