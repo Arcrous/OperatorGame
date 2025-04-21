@@ -11,6 +11,7 @@ public enum EnemyType
 }
 public class EnemyAI : MonoBehaviour
 {
+    // Reference to the grid manager for pathfinding and cell management
     public GridManager gridManager;
     public float moveSpeed = 1f;
     public EnemyType enemyType = EnemyType.Chaser; // Default to chaser
@@ -18,7 +19,6 @@ public class EnemyAI : MonoBehaviour
 
     [Range(1, 10)] // Limits how far the enemy can move from its starting position
     public int patrolRange = 3;
-    public int detectionRadius;
     public float traceDuration = 5f;
 
     // Behavior-specific settings
@@ -36,16 +36,28 @@ public class EnemyAI : MonoBehaviour
     [Tooltip("How far away the Wanderer tries to stay when not chasing")]
     public int wandererFleeDistance = 5;
 
+    //Detection settings
+    [Header("Detection Settings")]
+    [SerializeField] int detectionRadiusChaser = 3; // Chaser detection radius
+    [SerializeField] int detectionRadiusAmbusher = 5; // Ambusher detection radius
+    [SerializeField] int detectionRadiusPatroller = 2; // Patroller detection radius
+    [SerializeField] int detectionRadiusWanderer = 4; // Wanderer detection radius
+    int detectionRadius = 3; // Default detection radius for all enemies
+
+    [Header("Current State")]
+    public bool seenTrace = false;
+    [SerializeField] private bool isFollowingPath = false;
+    [SerializeField] private bool isChasing = false;
+    private bool isMoving;
+    private bool isDead = false;
+
+    // For the patrol pathfinding
     private Cell currentCell; // Tracks the enemy's current cell
     private List<Cell> path; // Current path for patrol
     private List<Cell> walkableCells;
-    private bool isMoving;
-    [SerializeField] private bool isFollowingPath = false;
-    private bool isDead = false;
-    public bool seenTrace = false;
-    [SerializeField] private bool isChasing = false;
-
     private Pathfinding pathfinding;
+
+    // For the enemy's sprite and visual representation
     [SerializeField] Sprite[] sprites;
 
     // For tracking trace direction
@@ -57,7 +69,11 @@ public class EnemyAI : MonoBehaviour
     public bool showDetectionRanges = true;
     public bool showDetectedTraces = true;
     private List<Cell> currentlyDetectedTraces = new List<Cell>();
-    private float lastDetectionVisualizationTime = 0f;
+
+    // For the wanderer behavior
+    private float moodChangeTimer = 0f;
+    private float moodChangeCooldown = 2f; // Adjust this value to control how often mood can change
+    private bool isAggressiveMood = false;
 
     #region Setup region
     private void Awake()
@@ -95,7 +111,7 @@ public class EnemyAI : MonoBehaviour
     }
 
     // Make sure to add an Update method to refresh the visualization regularly
-    void Update()
+    void FixedUpdate()
     {
         // Refresh detected traces for visualization purposes if we're chasing
         if (isChasing && showDetectedTraces)
@@ -275,7 +291,8 @@ public class EnemyAI : MonoBehaviour
                 if (freshTraces.Count > 0)
                 {
                     // Sort by closest
-                    freshTraces.Sort((a, b) => {
+                    freshTraces.Sort((a, b) =>
+                    {
                         int distA = Mathf.Abs(a.x - currentCell.x) + Mathf.Abs(a.y - currentCell.y);
                         int distB = Mathf.Abs(b.x - currentCell.x) + Mathf.Abs(b.y - currentCell.y);
                         return distA.CompareTo(distB);
@@ -580,17 +597,28 @@ public class EnemyAI : MonoBehaviour
         switch (enemyType)
         {
             case EnemyType.Ambusher:
-                detectionRadius = 5; // Ambushers have the longest detection range
+                detectionRadius = detectionRadiusAmbusher; // Ambushers have the longest detection range
                 break;
             case EnemyType.Chaser:
-                detectionRadius = 3; // Standard detection range
+                detectionRadius = detectionRadiusChaser; // Standard detection range
                 break;
             case EnemyType.Patroller:
-                detectionRadius = 2; // Limited detection range but systematic movement
+                detectionRadius = detectionRadiusPatroller; // Limited detection range but systematic movement
                 break;
             case EnemyType.Wanderer:
-                // Wanderers have variable detection based on their current mood
-                detectionRadius = Random.value < wandererChaseChance ? 4 : 2;
+                // Update mood timer
+                moodChangeTimer += Time.deltaTime;
+
+                // Only change mood when cooldown is complete
+                if (moodChangeTimer >= moodChangeCooldown)
+                {
+                    isAggressiveMood = Random.value < wandererChaseChance;
+                    moodChangeTimer = 0f;
+                }
+
+                // Use the current mood to determine detection radius
+                detectionRadius = isAggressiveMood ? 4 : 2;
+                // Wanderers can be unpredictable, so they have a variable detection range
                 break;
             default:
                 detectionRadius = 3;
@@ -609,7 +637,8 @@ public class EnemyAI : MonoBehaviour
         if (nearbyTraces.Count > 0)
         {
             // We detected traces! Sort by closest
-            nearbyTraces.Sort((a, b) => {
+            nearbyTraces.Sort((a, b) =>
+            {
                 int distA = Mathf.Abs(a.x - currentCell.x) + Mathf.Abs(a.y - currentCell.y);
                 int distB = Mathf.Abs(b.x - currentCell.x) + Mathf.Abs(b.y - currentCell.y);
                 return distA.CompareTo(distB);
@@ -641,7 +670,8 @@ public class EnemyAI : MonoBehaviour
         if (nearbyTraces.Count > 0)
         {
             // Sort by closest
-            nearbyTraces.Sort((a, b) => {
+            nearbyTraces.Sort((a, b) =>
+            {
                 int distA = Mathf.Abs(a.x - currentCell.x) + Mathf.Abs(a.y - currentCell.y);
                 int distB = Mathf.Abs(b.x - currentCell.x) + Mathf.Abs(b.y - currentCell.y);
                 return distA.CompareTo(distB);
@@ -1122,33 +1152,44 @@ public class EnemyAI : MonoBehaviour
     #endregion
 
     #region Visualization related stuff
+    // Draw the detection radius as grid cells
+    void DrawDetectionRadius(int radius)
+    {
+        if (currentCell == null || gridManager == null) return;
+
+        // Calculate detection area
+        for (int dx = -radius; dx <= radius; dx++)
+        {
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                int distance = Mathf.Abs(dx) + Mathf.Abs(dy); // Manhattan distance
+                if (distance <= radius) // Only within radius
+                {
+                    int checkX = currentCell.x + dx;
+                    int checkY = currentCell.y + dy;
+
+                    // Check bounds
+                    if (checkX >= 0 && checkX < gridManager.width &&
+                        checkY >= 0 && checkY < gridManager.height)
+                    {
+                        Cell cell = gridManager.grid[checkX, checkY];
+                        if (cell != null)
+                        {
+                            Vector3 cellPos = cell.transform.position;
+                            Vector3 size = new Vector3(0.9f, 0.9f, 0.1f);
+                            Gizmos.DrawCube(cellPos, size);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     //Visualisation gizmos
     private void OnDrawGizmos()
     {
         if (!Application.isPlaying || !isDead)
         {
-            if (path != null)
-            {
-                Gizmos.color = Color.red;
-
-                foreach (Cell cell in path)
-                {
-                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
-                }
-            }
-
-            if (gridManager != null)
-            {
-                foreach (Cell cell in gridManager.grid)
-                {
-                    if (cell.cellEvent == "EnemyTrace")
-                    {
-                        Gizmos.color = Color.yellow;
-                        Gizmos.DrawSphere(cell.transform.position, 0.16f);
-                    }
-                }
-            }
-
             // Draw detection radius based on enemy type if enabled
             if (showDetectionRanges && currentCell != null)
             {
@@ -1157,19 +1198,19 @@ public class EnemyAI : MonoBehaviour
                 {
                     case EnemyType.Chaser:
                         Gizmos.color = new Color(1f, 0f, 0f, 0.2f); // Transparent red
-                        DrawDetectionRadius(3);
+                        DrawDetectionRadius(detectionRadius);
                         break;
                     case EnemyType.Ambusher:
-                        Gizmos.color = new Color(0f, 1f, 1f, 0.2f); // Transparent cyan
-                        DrawDetectionRadius(5);
+                        Gizmos.color = new Color(1f, 0f, 1f, 0.2f); // Transparent magenta
+                        DrawDetectionRadius(detectionRadius);
                         break;
                     case EnemyType.Patroller:
                         Gizmos.color = new Color(0f, 1f, 0f, 0.2f); // Transparent green
-                        DrawDetectionRadius(2);
+                        DrawDetectionRadius(detectionRadius);
                         break;
                     case EnemyType.Wanderer:
                         Gizmos.color = new Color(1f, 0.5f, 0f, 0.2f); // Transparent orange
-                        DrawDetectionRadius(Random.value < wandererChaseChance ? 4 : 2);
+                        DrawDetectionRadius(detectionRadius);
                         break;
                 }
             }
@@ -1186,12 +1227,6 @@ public class EnemyAI : MonoBehaviour
                         Gizmos.DrawLine(transform.position, cell.transform.position);
                     }
                 }
-            }
-
-            // Draw path detection visualization if we're following a path
-            if (isFollowingPath && path != null && path.Count > 0 && currentCell != null)
-            {
-                VisualizePathDetection();
             }
 
             // Draw behavior-specific visualization
@@ -1247,98 +1282,28 @@ public class EnemyAI : MonoBehaviour
                         break;
                 }
             }
-        }
-    }
-    // Draw the detection radius as grid cells
-    void DrawDetectionRadius(int radius)
-    {
-        if (currentCell == null || gridManager == null) return;
-
-        // Avoid creating too much garbage by limiting how often we draw this
-        if (Time.time - lastDetectionVisualizationTime < 0.2f) return;
-        lastDetectionVisualizationTime = Time.time;
-
-        // Calculate detection area
-        for (int dx = -radius; dx <= radius; dx++)
-        {
-            for (int dy = -radius; dy <= radius; dy++)
+            if (path != null)
             {
-                int distance = Mathf.Abs(dx) + Mathf.Abs(dy); // Manhattan distance
-                if (distance <= radius) // Only within radius
-                {
-                    int checkX = currentCell.x + dx;
-                    int checkY = currentCell.y + dy;
+                Gizmos.color = Color.red;
 
-                    // Check bounds
-                    if (checkX >= 0 && checkX < gridManager.width &&
-                        checkY >= 0 && checkY < gridManager.height)
+                foreach (Cell cell in path)
+                {
+                    Gizmos.DrawSphere(cell.transform.position, 0.15f);
+                }
+            }
+
+            if (gridManager != null)
+            {
+                foreach (Cell cell in gridManager.grid)
+                {
+                    if (cell.cellEvent == "EnemyTrace")
                     {
-                        Cell cell = gridManager.grid[checkX, checkY];
-                        if (cell != null)
-                        {
-                            Vector3 cellPos = cell.transform.position;
-                            Vector3 size = new Vector3(0.9f, 0.9f, 0.1f);
-                            Gizmos.DrawCube(cellPos, size);
-                        }
+                        Gizmos.color = Color.yellow;
+                        Gizmos.DrawSphere(cell.transform.position, 0.16f);
                     }
                 }
             }
-        }
-    }
 
-    // Visualize path detection
-    void VisualizePathDetection()
-    {
-        int currentIndex = 0;
-        // Find our current index in the path
-        for (int i = 0; i < path.Count; i++)
-        {
-            if (path[i] == currentCell)
-            {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        int endIndex = Mathf.Min(currentIndex + 2, path.Count);
-
-        // Visualize path ahead detection area
-        for (int i = currentIndex + 1; i < endIndex; i++)
-        {
-            if (i >= path.Count) continue;
-
-            Cell pathCell = path[i];
-            if (pathCell == null) continue;
-
-            // Draw the path cell
-            Gizmos.color = new Color(1f, 0f, 0f, 0.5f); // Semi-transparent red
-            Gizmos.DrawCube(pathCell.transform.position, new Vector3(0.8f, 0.8f, 0.1f));
-
-            // Draw adjacency detection
-            for (int dx = -1; dx <= 1; dx++)
-            {
-                for (int dy = -1; dy <= 1; dy++)
-                {
-                    // Skip the center cell (already drawn)
-                    if (dx == 0 && dy == 0) continue;
-
-                    int adjX = pathCell.x + dx;
-                    int adjY = pathCell.y + dy;
-
-                    // Check bounds
-                    if (adjX >= 0 && adjX < gridManager.width &&
-                        adjY >= 0 && adjY < gridManager.height)
-                    {
-                        Cell adjCell = gridManager.grid[adjX, adjY];
-                        if (adjCell != null)
-                        {
-                            // Draw adjacent cells with a different color
-                            Gizmos.color = new Color(1f, 0.5f, 0.5f, 0.3f); // Light red
-                            Gizmos.DrawCube(adjCell.transform.position, new Vector3(0.7f, 0.7f, 0.05f));
-                        }
-                    }
-                }
-            }
         }
     }
     #endregion

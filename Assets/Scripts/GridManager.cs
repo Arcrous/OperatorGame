@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.EditorTools;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -7,6 +8,9 @@ public class GridManager : MonoBehaviour
 {
     [Header("Grid Related")]
     [SerializeField] bool destroyGrid = false;
+
+    [Tooltip("Set this to true to generate a random grid size from 10 to 40")]
+    [SerializeField] bool isRandomGrid = false; // Flag to check if the grid has been generated
 
     public int width = 10; //grid width
     public int height = 10; //grid height
@@ -40,6 +44,12 @@ public class GridManager : MonoBehaviour
 
     void Start()
     {
+        if (isRandomGrid)
+        {
+            // Randomly generate grid size if not set
+            width = Random.Range(10, 40);
+            height = Random.Range(10, 40);
+        }
         gameSpeed = 1f;
         StartCoroutine(GenerateValidMazeCoroutine());
         TraceManager manager = TraceManager.Instance; // Ensure TraceManager is initialized

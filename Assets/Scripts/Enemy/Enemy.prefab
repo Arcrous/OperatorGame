@@ -190,6 +190,10 @@ MonoBehaviour:
   typeDiamond: {fileID: 2763775642526099905}
   patrolRange: 3
   traceDuration: 7
+  detectionRadiusChaser: 3
+  detectionRadiusAmbusher: 4
+  detectionRadiusPatroller: 2
+  detectionRadiusWanderer: 4
   ambushLookAhead: 7
   patrollerPatternSize: 8
   wandererChaseChance: 0.5
@@ -228,6 +232,8 @@ MonoBehaviour:
   - {fileID: 1921224144, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: -388149249, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
   - {fileID: -557192544, guid: d34bccdb5d6b7f24b96f97250e95ecd0, type: 3}
+  showDetectionRanges: 1
+  showDetectedTraces: 1
 --- !u!50 &-8878242631809728167
 Rigidbody2D:
   serializedVersion: 4
