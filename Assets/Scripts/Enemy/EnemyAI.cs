@@ -18,7 +18,7 @@ public class EnemyAI : MonoBehaviour
 
     [Range(1, 10)] // Limits how far the enemy can move from its starting position
     public int patrolRange = 3;
-
+    public int detectionRadius;
     public float traceDuration = 5f;
 
     // Behavior-specific settings
@@ -51,6 +51,13 @@ public class EnemyAI : MonoBehaviour
     // For tracking trace direction
     private Cell lastTraceCell;
     private Vector2Int traceDirection = Vector2Int.zero;
+
+    // Add these fields to your EnemyAI class
+    [Header("Debug Visualization")]
+    public bool showDetectionRanges = true;
+    public bool showDetectedTraces = true;
+    private List<Cell> currentlyDetectedTraces = new List<Cell>();
+    private float lastDetectionVisualizationTime = 0f;
 
     #region Setup region
     private void Awake()
@@ -85,6 +92,17 @@ public class EnemyAI : MonoBehaviour
     private void Start()
     {
         InitializePatrol();
+    }
+
+    // Make sure to add an Update method to refresh the visualization regularly
+    void Update()
+    {
+        // Refresh detected traces for visualization purposes if we're chasing
+        if (isChasing && showDetectedTraces)
+        {
+            // Use the type-specific detection
+            DetectTracesBasedOnType();
+        }
     }
 
     public void Die() //Death, simple 
@@ -157,9 +175,25 @@ public class EnemyAI : MonoBehaviour
             }
         }
 
+        float periodicCheckTimer = 0f;
+        float periodicCheckInterval = 0.5f; // Check every half second
+
         while (!isChasing) // Check if the enemy is chasing the player
         {
-            //Check if the path is not empty and contains valid cells, if not the move along it
+            // Periodic trace detection regardless of path position
+            periodicCheckTimer += Time.deltaTime;
+            if (periodicCheckTimer >= periodicCheckInterval)
+            {
+                periodicCheckTimer = 0f;
+                if (PeriodicTraceCheck())
+                {
+                    // We detected a trace and started chasing
+                    isFollowingPath = false;
+                    yield break;
+                }
+            }
+
+            //Check if the path is not empty and contains valid cells, if not then move along it
             if (path != null && path.Count > 0)
             {
                 if (!isChasing)
@@ -169,7 +203,7 @@ public class EnemyAI : MonoBehaviour
                         if (path[i] == null) continue; // Skip null cells
                         yield return MoveToCell(path[i]);
 
-                        // Check for a trace ahead.
+                        // Check for a trace ahead
                         if (IsThereAgentTraceAhead(currentCell, i))
                         {
                             isChasing = true;
@@ -177,11 +211,18 @@ public class EnemyAI : MonoBehaviour
                             StartCoroutine(ChaseBasedOnEnemyType());
                             yield break;
                         }
+
+                        // Periodically check again during movement
+                        if (PeriodicTraceCheck())
+                        {
+                            isFollowingPath = false;
+                            yield break;
+                        }
                     }
                 }
 
                 yield return new WaitForSeconds(1f); // Wait for a second before starting the loop again
-                //Generate a new patrol path after completing the loop
+                                                     //Generate a new patrol path after completing the loop
                 GenerateNewPatrolPath();
             }
             else
@@ -190,6 +231,8 @@ public class EnemyAI : MonoBehaviour
                 GenerateNewPatrolPath();
             }
         }
+
+        isFollowingPath = false;
     }
     #endregion
 
@@ -217,56 +260,88 @@ public class EnemyAI : MonoBehaviour
     IEnumerator ChaserBehavior()
     {
         Debug.Log("Chaser behavior initiated.");
+        float detectionTimer = 0f;
+        float detectionInterval = 0.3f; // Check frequently
+
         while (isChasing)
         {
-            // First, check if any adjacent cell contains a trace.
-            Cell adjacentTrace = FindAdjacentTrace();
-            if (adjacentTrace != null)
+            // Periodically scan for new traces while chasing
+            detectionTimer += 0.1f;
+            if (detectionTimer >= detectionInterval)
             {
-                Debug.Log("Chasing adjacent trace.");
-                yield return MoveToCell(adjacentTrace);
+                detectionTimer = 0f;
+                List<Cell> freshTraces = DetectTracesInRadius(3);
 
-                // Update trace direction
-                UpdateTraceDirection(adjacentTrace);
-            }
-            else
-            {
-                // Otherwise, search the entire grid for the nearest trace.
-                Cell targetTrace = FindNearestTraceCell();
-                if (targetTrace != null)
+                if (freshTraces.Count > 0)
                 {
+                    // Sort by closest
+                    freshTraces.Sort((a, b) => {
+                        int distA = Mathf.Abs(a.x - currentCell.x) + Mathf.Abs(a.y - currentCell.y);
+                        int distB = Mathf.Abs(b.x - currentCell.x) + Mathf.Abs(b.y - currentCell.y);
+                        return distA.CompareTo(distB);
+                    });
+
+                    // If there's a trace right next to us, move to it directly
+                    foreach (Cell traceCell in freshTraces)
+                    {
+                        int distance = Mathf.Abs(traceCell.x - currentCell.x) + Mathf.Abs(traceCell.y - currentCell.y);
+                        if (distance <= 1)
+                        {
+                            yield return MoveToCell(traceCell);
+                            UpdateTraceDirection(traceCell);
+                            break;
+                        }
+                    }
+
+                    // If no adjacent trace was found, pathfind to the nearest one
+                    Cell targetTrace = freshTraces[0];
                     List<Cell> chasePath = pathfinding.FindPath(currentCell, targetTrace);
                     if (chasePath != null && chasePath.Count > 0)
                     {
-                        foreach (Cell cell in chasePath)
-                        {
-                            yield return MoveToCell(cell);
+                        yield return MoveToCell(chasePath[0]);
 
-                            // If we encounter a trace, update the direction
-                            if (cell.cellEvent == "AgentTrace")
-                            {
-                                UpdateTraceDirection(cell);
-                            }
+                        // If we moved to a trace, update direction
+                        if (chasePath[0].cellEvent == "AgentTrace")
+                        {
+                            UpdateTraceDirection(chasePath[0]);
                         }
-                    }
-                    else
-                    {
-                        Debug.Log("No valid path to trace found.");
-                        isChasing = false;
-                        break;
                     }
                 }
                 else
                 {
-                    // If no trace is found anywhere, stop chasing and return to patrol.
-                    Debug.Log("No trace found, returning to patrol.");
-                    isChasing = false;
-                    break;
+                    // Use the original chase method as fallback
+                    Cell adjacentTrace = FindAdjacentTrace();
+                    if (adjacentTrace != null)
+                    {
+                        yield return MoveToCell(adjacentTrace);
+                        UpdateTraceDirection(adjacentTrace);
+                    }
+                    else
+                    {
+                        Cell targetTrace = FindNearestTraceCell();
+                        if (targetTrace != null)
+                        {
+                            List<Cell> chasePath = pathfinding.FindPath(currentCell, targetTrace);
+                            if (chasePath != null && chasePath.Count > 0)
+                            {
+                                yield return MoveToCell(chasePath[0]);
+                            }
+                        }
+                        else
+                        {
+                            // No traces found anywhere, stop chasing
+                            Debug.Log("No trace found, returning to patrol.");
+                            isChasing = false;
+                            break;
+                        }
+                    }
                 }
             }
-            yield return new WaitForSeconds(0.1f); // Small delay to avoid a tight loop.
+
+            yield return new WaitForSeconds(0.1f);
         }
-        // Resume patrol behavior after chasing.
+
+        // Resume patrol behavior after chasing
         ResumePatrol();
     }
 
@@ -463,21 +538,154 @@ public class EnemyAI : MonoBehaviour
     #endregion
 
     #region Behavior Helper Methods
+    // Check for traces in a wider area around the enemy
+    public List<Cell> DetectTracesInRadius(int radius)
+    {
+        List<Cell> foundTraces = new List<Cell>();
+
+        for (int dx = -radius; dx <= radius; dx++)
+        {
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                int distance = Mathf.Abs(dx) + Mathf.Abs(dy); // Manhattan distance
+                if (distance <= radius) // Only within radius
+                {
+                    int checkX = currentCell.x + dx;
+                    int checkY = currentCell.y + dy;
+
+                    // Check bounds
+                    if (checkX >= 0 && checkX < gridManager.width &&
+                        checkY >= 0 && checkY < gridManager.height)
+                    {
+                        Cell checkCell = gridManager.grid[checkX, checkY];
+                        if (checkCell != null && checkCell.cellEvent == "AgentTrace")
+                        {
+                            foundTraces.Add(checkCell);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update our visualization list
+        currentlyDetectedTraces = foundTraces;
+
+        return foundTraces;
+    }
+
+    // Detect trace based on enemy type - different enemies can have different detection ranges
+    public List<Cell> DetectTracesBasedOnType()
+    {
+        // Different enemy types have different detection capabilities
+        switch (enemyType)
+        {
+            case EnemyType.Ambusher:
+                detectionRadius = 5; // Ambushers have the longest detection range
+                break;
+            case EnemyType.Chaser:
+                detectionRadius = 3; // Standard detection range
+                break;
+            case EnemyType.Patroller:
+                detectionRadius = 2; // Limited detection range but systematic movement
+                break;
+            case EnemyType.Wanderer:
+                // Wanderers have variable detection based on their current mood
+                detectionRadius = Random.value < wandererChaseChance ? 4 : 2;
+                break;
+            default:
+                detectionRadius = 3;
+                break;
+        }
+
+        return DetectTracesInRadius(detectionRadius);
+    }
+
+    // Helper method for periodic trace detection during any behavior
+    public bool PeriodicTraceCheck()
+    {
+        // Use the type-specific detection
+        List<Cell> nearbyTraces = DetectTracesBasedOnType();
+
+        if (nearbyTraces.Count > 0)
+        {
+            // We detected traces! Sort by closest
+            nearbyTraces.Sort((a, b) => {
+                int distA = Mathf.Abs(a.x - currentCell.x) + Mathf.Abs(a.y - currentCell.y);
+                int distB = Mathf.Abs(b.x - currentCell.x) + Mathf.Abs(b.y - currentCell.y);
+                return distA.CompareTo(distB);
+            });
+
+            // Store the closest trace for later use
+            Cell closestTrace = nearbyTraces[0];
+            lastTraceCell = closestTrace;
+
+            // If we weren't already chasing, start now
+            if (!isChasing)
+            {
+                isChasing = true;
+                isFollowingPath = false;
+                StartCoroutine(ChaseBasedOnEnemyType());
+            }
+
+            return true;
+        }
+
+        return false;
+    }
     // Helper for the chaser behavior to just take one step
     IEnumerator ChaserBehaviorOneStep()
     {
-        Cell targetTrace = FindNearestTraceCell();
-        if (targetTrace != null)
-        {
-            List<Cell> chasePath = pathfinding.FindPath(currentCell, targetTrace);
-            if (chasePath != null && chasePath.Count > 0)
-            {
-                yield return MoveToCell(chasePath[0]);
+        // First check nearby traces with improved detection
+        List<Cell> nearbyTraces = DetectTracesInRadius(2);
 
-                // If we just moved to a trace, update direction
-                if (chasePath[0].cellEvent == "AgentTrace")
+        if (nearbyTraces.Count > 0)
+        {
+            // Sort by closest
+            nearbyTraces.Sort((a, b) => {
+                int distA = Mathf.Abs(a.x - currentCell.x) + Mathf.Abs(a.y - currentCell.y);
+                int distB = Mathf.Abs(b.x - currentCell.x) + Mathf.Abs(b.y - currentCell.y);
+                return distA.CompareTo(distB);
+            });
+
+            Cell closestTrace = nearbyTraces[0];
+            int distance = Mathf.Abs(closestTrace.x - currentCell.x) + Mathf.Abs(closestTrace.y - currentCell.y);
+
+            if (distance <= 1)
+            {
+                // If adjacent, move directly
+                yield return MoveToCell(closestTrace);
+                UpdateTraceDirection(closestTrace);
+            }
+            else
+            {
+                // Otherwise pathfind
+                List<Cell> path = pathfinding.FindPath(currentCell, closestTrace);
+                if (path != null && path.Count > 0)
                 {
-                    UpdateTraceDirection(chasePath[0]);
+                    yield return MoveToCell(path[0]);
+
+                    if (path[0].cellEvent == "AgentTrace")
+                    {
+                        UpdateTraceDirection(path[0]);
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Fall back to original behavior
+            Cell targetTrace = FindNearestTraceCell();
+            if (targetTrace != null)
+            {
+                List<Cell> chasePath = pathfinding.FindPath(currentCell, targetTrace);
+                if (chasePath != null && chasePath.Count > 0)
+                {
+                    yield return MoveToCell(chasePath[0]);
+
+                    if (chasePath[0].cellEvent == "AgentTrace")
+                    {
+                        UpdateTraceDirection(chasePath[0]);
+                    }
                 }
             }
         }
@@ -494,6 +702,7 @@ public class EnemyAI : MonoBehaviour
     //Check if the cells ahead for AgentTrace, use a bool function to return true or false
     bool IsThereAgentTraceAhead(Cell currentCell, int currentIndex)
     {
+        // First use the original method to check directly on the path
         int endIndex = Mathf.Min(currentIndex + 2, path.Count);
 
         for (int i = currentIndex + 1; i < endIndex; i++)
@@ -502,7 +711,40 @@ public class EnemyAI : MonoBehaviour
             if (nextCell.cellEvent == "AgentTrace")
             {
                 seenTrace = true;
+                lastTraceCell = nextCell; // Remember this trace
                 return true;
+            }
+        }
+
+        // Now also check for traces in vicinity of the path
+        for (int i = currentIndex + 1; i < endIndex; i++)
+        {
+            Cell pathCell = path[i];
+
+            // Look at cells in small radius around this path cell
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    // Skip the center cell (already checked)
+                    if (dx == 0 && dy == 0) continue;
+
+                    int checkX = pathCell.x + dx;
+                    int checkY = pathCell.y + dy;
+
+                    // Check bounds
+                    if (checkX >= 0 && checkX < gridManager.width &&
+                        checkY >= 0 && checkY < gridManager.height)
+                    {
+                        Cell checkCell = gridManager.grid[checkX, checkY];
+                        if (checkCell.cellEvent == "AgentTrace")
+                        {
+                            seenTrace = true;
+                            lastTraceCell = checkCell; // Remember this trace
+                            return true;
+                        }
+                    }
+                }
             }
         }
 
@@ -883,7 +1125,7 @@ public class EnemyAI : MonoBehaviour
     //Visualisation gizmos
     private void OnDrawGizmos()
     {
-        if (!isDead)
+        if (!Application.isPlaying || !isDead)
         {
             if (path != null)
             {
@@ -905,6 +1147,51 @@ public class EnemyAI : MonoBehaviour
                         Gizmos.DrawSphere(cell.transform.position, 0.16f);
                     }
                 }
+            }
+
+            // Draw detection radius based on enemy type if enabled
+            if (showDetectionRanges && currentCell != null)
+            {
+                // Different colors for different enemy types
+                switch (enemyType)
+                {
+                    case EnemyType.Chaser:
+                        Gizmos.color = new Color(1f, 0f, 0f, 0.2f); // Transparent red
+                        DrawDetectionRadius(3);
+                        break;
+                    case EnemyType.Ambusher:
+                        Gizmos.color = new Color(0f, 1f, 1f, 0.2f); // Transparent cyan
+                        DrawDetectionRadius(5);
+                        break;
+                    case EnemyType.Patroller:
+                        Gizmos.color = new Color(0f, 1f, 0f, 0.2f); // Transparent green
+                        DrawDetectionRadius(2);
+                        break;
+                    case EnemyType.Wanderer:
+                        Gizmos.color = new Color(1f, 0.5f, 0f, 0.2f); // Transparent orange
+                        DrawDetectionRadius(Random.value < wandererChaseChance ? 4 : 2);
+                        break;
+                }
+            }
+
+            // Highlight currently detected traces
+            if (showDetectedTraces && currentlyDetectedTraces != null)
+            {
+                Gizmos.color = new Color(1f, 1f, 0f, 0.8f); // Bright yellow
+                foreach (Cell cell in currentlyDetectedTraces)
+                {
+                    if (cell != null)
+                    {
+                        Gizmos.DrawWireSphere(cell.transform.position, 0.3f);
+                        Gizmos.DrawLine(transform.position, cell.transform.position);
+                    }
+                }
+            }
+
+            // Draw path detection visualization if we're following a path
+            if (isFollowingPath && path != null && path.Count > 0 && currentCell != null)
+            {
+                VisualizePathDetection();
             }
 
             // Draw behavior-specific visualization
@@ -958,6 +1245,98 @@ public class EnemyAI : MonoBehaviour
                             }
                         }
                         break;
+                }
+            }
+        }
+    }
+    // Draw the detection radius as grid cells
+    void DrawDetectionRadius(int radius)
+    {
+        if (currentCell == null || gridManager == null) return;
+
+        // Avoid creating too much garbage by limiting how often we draw this
+        if (Time.time - lastDetectionVisualizationTime < 0.2f) return;
+        lastDetectionVisualizationTime = Time.time;
+
+        // Calculate detection area
+        for (int dx = -radius; dx <= radius; dx++)
+        {
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                int distance = Mathf.Abs(dx) + Mathf.Abs(dy); // Manhattan distance
+                if (distance <= radius) // Only within radius
+                {
+                    int checkX = currentCell.x + dx;
+                    int checkY = currentCell.y + dy;
+
+                    // Check bounds
+                    if (checkX >= 0 && checkX < gridManager.width &&
+                        checkY >= 0 && checkY < gridManager.height)
+                    {
+                        Cell cell = gridManager.grid[checkX, checkY];
+                        if (cell != null)
+                        {
+                            Vector3 cellPos = cell.transform.position;
+                            Vector3 size = new Vector3(0.9f, 0.9f, 0.1f);
+                            Gizmos.DrawCube(cellPos, size);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Visualize path detection
+    void VisualizePathDetection()
+    {
+        int currentIndex = 0;
+        // Find our current index in the path
+        for (int i = 0; i < path.Count; i++)
+        {
+            if (path[i] == currentCell)
+            {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        int endIndex = Mathf.Min(currentIndex + 2, path.Count);
+
+        // Visualize path ahead detection area
+        for (int i = currentIndex + 1; i < endIndex; i++)
+        {
+            if (i >= path.Count) continue;
+
+            Cell pathCell = path[i];
+            if (pathCell == null) continue;
+
+            // Draw the path cell
+            Gizmos.color = new Color(1f, 0f, 0f, 0.5f); // Semi-transparent red
+            Gizmos.DrawCube(pathCell.transform.position, new Vector3(0.8f, 0.8f, 0.1f));
+
+            // Draw adjacency detection
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    // Skip the center cell (already drawn)
+                    if (dx == 0 && dy == 0) continue;
+
+                    int adjX = pathCell.x + dx;
+                    int adjY = pathCell.y + dy;
+
+                    // Check bounds
+                    if (adjX >= 0 && adjX < gridManager.width &&
+                        adjY >= 0 && adjY < gridManager.height)
+                    {
+                        Cell adjCell = gridManager.grid[adjX, adjY];
+                        if (adjCell != null)
+                        {
+                            // Draw adjacent cells with a different color
+                            Gizmos.color = new Color(1f, 0.5f, 0.5f, 0.3f); // Light red
+                            Gizmos.DrawCube(adjCell.transform.position, new Vector3(0.7f, 0.7f, 0.05f));
+                        }
+                    }
                 }
             }
         }
